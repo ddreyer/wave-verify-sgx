@@ -1,0 +1,31 @@
+{
+    "deploy": {
+        "targets": [
+            {
+                "type": "sftp",
+                "name": "Wave SGX server",
+                "description": "wave project",
+                "host": "ante.cs.berkeley.edu", "port": 22,
+                "dir": "wave-verify-sgx2/",
+                "user": "sgx",
+                "privateKey": "/Users/dyldreyer/.ssh/github_rsa",
+
+                "checkBeforeDeploy": true,
+
+                "deployOnSave": true,
+
+ 
+                
+            },
+        ],
+        "packages": [
+            {
+                "name": "Wave verify sgx2",
+                "files": [
+                    "**/*",
+                ],
+                "deployOnSave": true
+            }
+        ]
+    }
+}
