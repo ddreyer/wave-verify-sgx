@@ -47,5 +47,10 @@ typedef struct _ra_msg4_struct {
 	sgx_platform_info_t platformInfoBlob;
 } ra_msg4_t;
 
+typedef struct _ra_msgproof_struct {
+	size_t size;
+	char proof_contents[];
+} ra_msgproof_t;
+
 #endif
 

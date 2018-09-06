@@ -151,6 +151,41 @@ sgx_status_t enclave_ra_init_def(int b_pse, sgx_ra_context_t *ctx,
 	return enclave_ra_init(def_service_public_key, b_pse, ctx, pse_status);
 }
 
+/* Enclave message verification */
+sgx_status_t ecall_verify_proof(char *str, size_t cipher_size) 
+{
+    ocall_print("Enclave: Inside enclave to verify the proof");
+
+    // struct private_key_class priv[1];
+    // // unseal private key for use decrypting
+    // uint32_t plaintext_size = sizeof(struct private_key_class);
+    // sgx_status_t status = sgx_unseal_data((sgx_sealed_data_t *) sealed_data, NULL, NULL, 
+    //     (uint8_t*) &priv, &plaintext_size);
+
+    // if (status != SGX_SUCCESS)
+    // {
+    //     return status;
+    // }
+  
+    // ocall_print("Enclave: Unsealing key success");
+    // long long *cipher = (long long *) str;
+
+    // // decrypt proof contents
+    // char *decrypted = rsa_decrypt(cipher, cipher_size, priv);
+    // if (!decrypted)
+    // {
+    //     return SGX_ERROR_UNEXPECTED;
+    // }
+    // ocall_print("Enclave: Decrypted proof contents in the enclave:\n");
+    // ocall_print(decrypted);
+	ocall_print((const char *)str);
+
+    // verify proof
+    // verify(decrypted)
+    // free(decrypted);
+
+    return SGX_SUCCESS;
+}
 
 sgx_status_t enclave_ra_close(sgx_ra_context_t ctx)
 {

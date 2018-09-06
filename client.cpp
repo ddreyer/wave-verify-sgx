@@ -102,6 +102,7 @@ sgx_status_t sgx_create_enclave_search (
 );
 
 void usage();
+int do_verify(sgx_enclave_id_t eid, config_t *config);
 int do_quote(sgx_enclave_id_t eid, config_t *config);
 int do_attestation(sgx_enclave_id_t eid, config_t *config);
 
@@ -404,6 +405,10 @@ int main (int argc, char *argv[])
 	}
 #endif
 
+	/* for now, just do proof verification with no attestation */
+	do_verify(eid, &config);
+	return 0;
+
 	/* Are we attesting, or just spitting out a quote? */
 
 	if ( config.mode == MODE_ATTEST ) {
@@ -417,6 +422,97 @@ int main (int argc, char *argv[])
 
      
 	close_logfile(fplog);
+}
+
+int do_verify(sgx_enclave_id_t eid, config_t *config)
+{
+	sgx_status_t status, sgxrv, pse_status;
+	ra_msgproof_t *proof_info;
+	uint32_t msg0_extended_epid_group_id = 0;
+	uint32_t flags= config->flags;
+	sgx_ra_context_t ra_ctx= 0xdeadbeef;
+	int rv;
+	MsgIO *msgio;
+	size_t msg4sz = 0;
+	int enclaveTrusted = 1; // Not Trusted
+	int b_pse= OPT_ISSET(flags, OPT_PSE);
+
+	if ( config->server == NULL ) {
+		msgio = new MsgIO();
+	} else {
+		try {
+			msgio = new MsgIO(config->server, (config->port == NULL) ?
+				DEFAULT_PORT : config->port);
+		}
+		catch(...) {
+			exit(1);
+		}
+	}
+
+	/*
+	 * WARNING! Normally, the public key would be hardcoded into the
+	 * enclave, not passed in as a parameter. Hardcoding prevents
+	 * the enclave using an unauthorized key.
+	 *
+	 * This is diagnostic/test application, however, so we have
+	 * the flexibility of a dynamically assigned key.
+	 */
+
+	/* Executes an ECALL that runs sgx_ra_init() */
+
+	if ( OPT_ISSET(flags, OPT_PUBKEY) ) {
+		if ( debug ) fprintf(stderr, "+++ using supplied public key\n");
+		status= enclave_ra_init(eid, &sgxrv, config->pubkey, b_pse,
+			&ra_ctx, &pse_status);
+	} else {
+		if ( debug ) fprintf(stderr, "+++ using default public key\n");
+		status= enclave_ra_init_def(eid, &sgxrv, b_pse, &ra_ctx,
+			&pse_status);
+	}
+
+	/* Did the ECALL succeed? */
+	if ( status != SGX_SUCCESS ) {
+		fprintf(stderr, "enclave_ra_init: %08x\n", status);
+		return 1;
+	}
+
+	/* If we asked for a PSE session, did that succeed? */
+	if (b_pse) {
+		if ( pse_status != SGX_SUCCESS ) {
+			fprintf(stderr, "pse_session: %08x\n", sgxrv);
+			return 1;
+		}
+	}
+
+	/* Did sgx_ra_init() succeed? */
+	if ( sgxrv != SGX_SUCCESS ) {
+		fprintf(stderr, "sgx_ra_init: %08x\n", sgxrv);
+		return 1;
+	}
+
+	/* read proof info */
+	rv= msgio->read((void **) &proof_info, NULL);
+	printf("Enclave app: Retrieved proof info from client\n");
+
+	if ( rv == 0 ) {
+                enclave_ra_close(eid, &sgxrv, ra_ctx);
+		fprintf(stderr, "protocol error reading msg2\n");
+		exit(1);
+	} else if ( rv == -1 ) {
+                enclave_ra_close(eid, &sgxrv, ra_ctx);
+		fprintf(stderr, "system error occurred while reading msg2\n");
+		exit(1);
+	}
+
+	// pass cipher into enclave to decrypt and verify
+    status = ecall_verify_proof(eid, &sgxrv, proof_info->proof_contents,
+        proof_info->size);
+
+	if ( sgxrv != SGX_SUCCESS ) {
+		fprintf(stderr, "ecall_verify_proof: %08x\n", sgxrv);
+		return 1;
+	}
+	return 0;
 }
 
 int do_attestation (sgx_enclave_id_t eid, config_t *config)
@@ -1115,3 +1211,6 @@ void usage ()
 	exit(1);
 }
 
+void ocall_print(const char* str) {
+    printf("%s\n", str);
+}

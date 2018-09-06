@@ -59,6 +59,8 @@ using namespace std;
 #include <string>
 #include <iostream>
 #include <algorithm>
+#include <fstream>
+#include <streambuf>
 
 #ifdef _WIN32
 #define strdup(x) _strdup(x)
@@ -385,20 +387,20 @@ int main(int argc, char *argv[])
 			NULL, 0, 0, NULL);
 	}
 
-	if (!flag_spid) {
-		eprintf("--spid or --spid-file is required\n");
-		flag_usage = 1;
-	}
+	// if (!flag_spid) {
+	// 	eprintf("--spid or --spid-file is required\n");
+	// 	flag_usage = 1;
+	// }
 
-	if (!flag_cert) {
-		eprintf("--ias-cert-file is required\n");
-		flag_usage = 1;
-	}
+	// if (!flag_cert) {
+	// 	eprintf("--ias-cert-file is required\n");
+	// 	flag_usage = 1;
+	// }
 
-	if (!flag_ca) {
-		eprintf("--ias-signing-cafile is required\n");
-		flag_usage = 1;
-	}
+	// if (!flag_ca) {
+	// 	eprintf("--ias-signing-cafile is required\n");
+	// 	flag_usage = 1;
+	// }
 
 	if (flag_usage) usage();
 
@@ -410,105 +412,105 @@ int main(int argc, char *argv[])
 
 	/* Initialize our IAS request object */
 
-	try {
-		ias = new IAS_Connection(
-			(flag_prod) ? IAS_SERVER_PRODUCTION : IAS_SERVER_DEVELOPMENT,
-			0
-		);
-	}
-	catch (...) {
-		oops = 1;
-		eprintf("exception while creating IAS request object\n");
-		return 1;
-	}
+// 	try {
+// 		ias = new IAS_Connection(
+// 			(flag_prod) ? IAS_SERVER_PRODUCTION : IAS_SERVER_DEVELOPMENT,
+// 			0
+// 		);
+// 	}
+// 	catch (...) {
+// 		oops = 1;
+// 		eprintf("exception while creating IAS request object\n");
+// 		return 1;
+// 	}
 
-	ias->client_cert(config.cert_file, (char *)config.cert_type);
-	if ( config.cert_passwd_file != NULL ) {
-		char *passwd;
-		char *keyfile;
-		off_t sz;
+// 	ias->client_cert(config.cert_file, (char *)config.cert_type);
+// 	if ( config.cert_passwd_file != NULL ) {
+// 		char *passwd;
+// 		char *keyfile;
+// 		off_t sz;
 
-		if ( ! from_file(NULL, config.cert_passwd_file, &sz) ) {
-			eprintf("can't load password from %s\n", 
-				config.cert_passwd_file);
-			return 1;
-		}
+// 		if ( ! from_file(NULL, config.cert_passwd_file, &sz) ) {
+// 			eprintf("can't load password from %s\n", 
+// 				config.cert_passwd_file);
+// 			return 1;
+// 		}
 
-		if ( sz > 0 ) {
-			char *cp;
+// 		if ( sz > 0 ) {
+// 			char *cp;
 
-			try {
-				passwd= new char[sz+1];
-			}
-			catch (...) {
-				eprintf("out of memory\n");
-				return 1;
-			}
+// 			try {
+// 				passwd= new char[sz+1];
+// 			}
+// 			catch (...) {
+// 				eprintf("out of memory\n");
+// 				return 1;
+// 			}
 
-			if ( ! from_file((unsigned char *) passwd, config.cert_passwd_file,
-			 	&sz) ) {
+// 			if ( ! from_file((unsigned char *) passwd, config.cert_passwd_file,
+// 			 	&sz) ) {
 
-				eprintf("can't load password from %s\n", 
-					config.cert_passwd_file);
-				return 1;
-			}
-			passwd[sz]= 0;
+// 				eprintf("can't load password from %s\n", 
+// 					config.cert_passwd_file);
+// 				return 1;
+// 			}
+// 			passwd[sz]= 0;
 
-			// Remove trailing newline or linefeed.
+// 			// Remove trailing newline or linefeed.
 
-			cp= strchr(passwd, '\n');
-			if ( cp != NULL ) *cp= 0;
-			cp= strchr(passwd, '\r');
-			if ( cp != NULL ) *cp= 0;
+// 			cp= strchr(passwd, '\n');
+// 			if ( cp != NULL ) *cp= 0;
+// 			cp= strchr(passwd, '\r');
+// 			if ( cp != NULL ) *cp= 0;
 
-			// If a key file isn't specified, assume it's bundled with
-			// the certificate.
+// 			// If a key file isn't specified, assume it's bundled with
+// 			// the certificate.
 
-			keyfile= (config.cert_key_file == NULL) ? config.cert_file :
-				config.cert_key_file;
-			if ( debug ) eprintf("+++ using cert key file %s\n", keyfile);
-			ias->client_key(keyfile, passwd);
+// 			keyfile= (config.cert_key_file == NULL) ? config.cert_file :
+// 				config.cert_key_file;
+// 			if ( debug ) eprintf("+++ using cert key file %s\n", keyfile);
+// 			ias->client_key(keyfile, passwd);
 
-#ifdef _WIN32
-			SecureZeroMemory(passwd, sz);
-#else
-			// -fno-builtin-memset prevents optimizing this away 
-			memset(passwd, 0, sz);
-#endif
-		}
-	} else if ( config.cert_key_file != NULL ) {
-		// We have a key file but no password.
-		ias->client_key(config.cert_key_file, NULL);
-	}
+// #ifdef _WIN32
+// 			SecureZeroMemory(passwd, sz);
+// #else
+// 			// -fno-builtin-memset prevents optimizing this away 
+// 			memset(passwd, 0, sz);
+// #endif
+// 		}
+// 	} else if ( config.cert_key_file != NULL ) {
+// 		// We have a key file but no password.
+// 		ias->client_key(config.cert_key_file, NULL);
+// 	}
 
-	if ( flag_noproxy ) ias->proxy_mode(IAS_PROXY_NONE);
-	else if (config.proxy_server != NULL) {
-		ias->proxy_mode(IAS_PROXY_FORCE);
-		ias->proxy(config.proxy_server, config.proxy_port);
-	}
+// 	if ( flag_noproxy ) ias->proxy_mode(IAS_PROXY_NONE);
+// 	else if (config.proxy_server != NULL) {
+// 		ias->proxy_mode(IAS_PROXY_FORCE);
+// 		ias->proxy(config.proxy_server, config.proxy_port);
+// 	}
 
-	if ( config.user_agent != NULL ) {
-		if ( ! ias->agent(config.user_agent) ) {
-			eprintf("%s: unknown user agent\n", config.user_agent);
-			return 0;
-		}
-	}
+// 	if ( config.user_agent != NULL ) {
+// 		if ( ! ias->agent(config.user_agent) ) {
+// 			eprintf("%s: unknown user agent\n", config.user_agent);
+// 			return 0;
+// 		}
+// 	}
 
-	/* 
-	 * Set the cert store for this connection. This is used for verifying 
-	 * the IAS signing certificate, not the TLS connection with IAS (the 
-	 * latter is handled using config.ca_bundle).
-	 */
-	ias->cert_store(config.store);
+// 	/* 
+// 	 * Set the cert store for this connection. This is used for verifying 
+// 	 * the IAS signing certificate, not the TLS connection with IAS (the 
+// 	 * latter is handled using config.ca_bundle).
+// 	 */
+// 	ias->cert_store(config.store);
 
-	/*
-	 * Set the CA bundle for verifying the IAS server certificate used
-	 * for the TLS session. If this isn't set, then the user agent
-	 * will fall back to it's default.
-	 */
-	if ( strlen(config.ca_bundle) ) ias->ca_bundle(config.ca_bundle);
+// 	/*
+// 	 * Set the CA bundle for verifying the IAS server certificate used
+// 	 * for the TLS session. If this isn't set, then the user agent
+// 	 * will fall back to it's default.
+// 	 */
+// 	if ( strlen(config.ca_bundle) ) ias->ca_bundle(config.ca_bundle);
 
-	/* Get our message IO object. */
+// 	/* Get our message IO object. */
 	
 	if ( flag_stdio ) {
 		msgio= new MsgIO();
@@ -520,6 +522,34 @@ int main(int argc, char *argv[])
 			return 1;
 		}
 	}
+
+	/* for now, send the proof contents to the enclave */
+	msgio->server_loop();
+	printf("Reading in proof PEM file...\n");
+
+    string proofFile("proof.pem");
+    ifstream t(proofFile);
+    string pemStr((istreambuf_iterator<char>(t)),
+                             istreambuf_iterator<char>());
+
+    /* extract proof content from .pem file */
+    pemStr.erase(0, pemStr.find("\n") + 1);
+    int idx = pemStr.find("-----END WAVE");
+    if (idx == string::npos) {
+        cerr << "invalid proof .pem file\n";
+        return -1;
+    }
+    pemStr.erase(idx, pemStr.find("\n", idx));
+    pemStr.erase(remove(pemStr.begin(), pemStr.end(), '\n'), pemStr.end());
+	
+	/* TODO: encrypt the proof */
+
+	/* send proof info to enclave */
+	size_t sz = pemStr.size();
+	msgio->send_partial(&sz, sizeof(size_t));
+	msgio->send((void *) pemStr.c_str(), sz);
+	printf("Sent proof info to enclave...\n");
+	return 0;
 
  	/* If we're running in server mode, we'll block here.  */
 
