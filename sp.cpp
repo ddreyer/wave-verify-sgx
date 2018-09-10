@@ -96,6 +96,8 @@ void usage();
 int derive_kdk(EVP_PKEY *Gb, unsigned char kdk[16], sgx_ra_msg1_t *msg1,
 	config_t *config);
 
+int send_proof(MsgIO *msg);
+
 int process_msg01 (MsgIO *msg, IAS_Connection *ias, sgx_ra_msg1_t *msg1,
 	sgx_ra_msg2_t *msg2, char **sigrl, config_t *config,
 	 unsigned char smk[16]);
@@ -365,6 +367,7 @@ int main(int argc, char *argv[])
 	 * Use the hardcoded default key unless one is provided on the
 	 * command line. Most real-world services would hardcode the
 	 * key since the public half is also hardcoded into the enclave.
+	 * TODO: figure this out
 	 */
 
 	if (config.service_private_key == NULL) {
@@ -387,6 +390,7 @@ int main(int argc, char *argv[])
 			NULL, 0, 0, NULL);
 	}
 
+	/* TODO: fix this */
 	// if (!flag_spid) {
 	// 	eprintf("--spid or --spid-file is required\n");
 	// 	flag_usage = 1;
@@ -524,32 +528,9 @@ int main(int argc, char *argv[])
 	}
 
 	/* for now, send the proof contents to the enclave */
-	msgio->server_loop();
-	printf("Reading in proof PEM file...\n");
-
-    string proofFile("proof.pem");
-    ifstream t(proofFile);
-    string pemStr((istreambuf_iterator<char>(t)),
-                             istreambuf_iterator<char>());
-
-    /* extract proof content from .pem file */
-    pemStr.erase(0, pemStr.find("\n") + 1);
-    int idx = pemStr.find("-----END WAVE");
-    if (idx == string::npos) {
-        cerr << "invalid proof .pem file\n";
-        return -1;
-    }
-    pemStr.erase(idx, pemStr.find("\n", idx));
-    pemStr.erase(remove(pemStr.begin(), pemStr.end(), '\n'), pemStr.end());
-	
-	/* TODO: encrypt the proof */
-
-	/* send proof info to enclave */
-	size_t sz = pemStr.size();
-	msgio->send_partial(&sz, sizeof(size_t));
-	msgio->send((void *) pemStr.c_str(), sz);
-	printf("Sent proof info to enclave...\n");
-	return 0;
+	/* TODO: how to establish initial connection and decide whether to do attestation
+	// send_proof(msgio);
+	// return 0;
 
  	/* If we're running in server mode, we'll block here.  */
 
@@ -601,6 +582,35 @@ disconnect:
 
 	crypto_destroy();
 
+	return 0;
+}
+
+int send_proof(MsgIO *msgio) {
+	msgio->server_loop();
+	printf("Reading in proof PEM file...\n");
+
+    string proofFile("proof.pem");
+    ifstream t(proofFile);
+    string pemStr((istreambuf_iterator<char>(t)),
+                             istreambuf_iterator<char>());
+
+    /* extract proof content from .pem file */
+    pemStr.erase(0, pemStr.find("\n") + 1);
+    int idx = pemStr.find("-----END WAVE");
+    if (idx == string::npos) {
+        cerr << "invalid proof .pem file\n";
+        return -1;
+    }
+    pemStr.erase(idx, pemStr.find("\n", idx));
+    pemStr.erase(remove(pemStr.begin(), pemStr.end(), '\n'), pemStr.end());
+	
+	/* TODO: encrypt the proof */
+
+	/* send proof info to enclave */
+	size_t sz = pemStr.size();
+	msgio->send_partial(&sz, sizeof(size_t));
+	msgio->send((void *) pemStr.c_str(), sz);
+	printf("Sent proof info to enclave...\n");
 	return 0;
 }
 
@@ -742,6 +752,7 @@ int process_msg3 (MsgIO *msgio, IAS_Connection *ias, sgx_ra_msg1_t *msg1,
 		sgx_report_body_t *r= (sgx_report_body_t *) &q->report_body;
 
 		/*
+		 * TODO:
 		 * A real service provider would validate that the enclave
 		 * report is from an enclave that they recognize. Namely,
 		 *  that the MRSIGNER matches our signing key, and the MRENCLAVE
@@ -953,6 +964,9 @@ int process_msg01 (MsgIO *msgio, IAS_Connection *ias, sgx_ra_msg1_t *msg1,
 	msg2->kdf_id= 1;
 
 	/* Get the sigrl */
+
+	printf("gid: %d\n", msg1->gid);
+	return 0;
 
 	if ( ! get_sigrl(ias, config->apiver, msg1->gid, sigrl,
 		&msg2->sig_rl_size) ) {

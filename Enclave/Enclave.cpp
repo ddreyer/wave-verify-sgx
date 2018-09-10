@@ -24,6 +24,10 @@ in the License.
 #include <sgx_tae_service.h>
 #include <sgx_tkey_exchange.h>
 
+// #include "verify.h"
+#include <string>
+
+/* TODO: how to manage clients pub key */
 static const sgx_ec256_public_t def_service_public_key = {
     {
         0x72, 0x12, 0x8a, 0x7a, 0x17, 0x52, 0x6e, 0xbf,
@@ -76,41 +80,41 @@ static const sgx_ec256_public_t def_service_public_key = {
  * to deal with that.
  */
 
-sgx_status_t get_report(sgx_report_t *report, sgx_target_info_t *target_info)
-{
-#ifdef SGX_HW_SIM
-	return sgx_create_report(NULL, NULL, report);
-#else
-	return sgx_create_report(target_info, NULL, report);
-#endif
-}
+// sgx_status_t get_report(sgx_report_t *report, sgx_target_info_t *target_info)
+// {
+// #ifdef SGX_HW_SIM
+// 	return sgx_create_report(NULL, NULL, report);
+// #else
+// 	return sgx_create_report(target_info, NULL, report);
+// #endif
+// }
 
-size_t get_pse_manifest_size ()
-{
-	return sizeof(sgx_ps_sec_prop_desc_t);
-}
+// size_t get_pse_manifest_size ()
+// {
+// 	return sizeof(sgx_ps_sec_prop_desc_t);
+// }
 
-sgx_status_t get_pse_manifest(char *buf, size_t sz)
-{
-	sgx_ps_sec_prop_desc_t ps_sec_prop_desc;
-	sgx_status_t status= SGX_ERROR_SERVICE_UNAVAILABLE;
-	int retries= PSE_RETRIES;
+// sgx_status_t get_pse_manifest(char *buf, size_t sz)
+// {
+// 	sgx_ps_sec_prop_desc_t ps_sec_prop_desc;
+// 	sgx_status_t status= SGX_ERROR_SERVICE_UNAVAILABLE;
+// 	int retries= PSE_RETRIES;
 
-	do {
-		status= sgx_create_pse_session();
-		if ( status != SGX_SUCCESS ) return status;
-	} while (status == SGX_ERROR_BUSY && retries--);
-	if ( status != SGX_SUCCESS ) return status;
+// 	do {
+// 		status= sgx_create_pse_session();
+// 		if ( status != SGX_SUCCESS ) return status;
+// 	} while (status == SGX_ERROR_BUSY && retries--);
+// 	if ( status != SGX_SUCCESS ) return status;
 
-	status= sgx_get_ps_sec_prop(&ps_sec_prop_desc);
-	if ( status != SGX_SUCCESS ) return status;
+// 	status= sgx_get_ps_sec_prop(&ps_sec_prop_desc);
+// 	if ( status != SGX_SUCCESS ) return status;
 
-	memcpy(buf, &ps_sec_prop_desc, sizeof(ps_sec_prop_desc));
+// 	memcpy(buf, &ps_sec_prop_desc, sizeof(ps_sec_prop_desc));
 
-	sgx_close_pse_session();
+// 	sgx_close_pse_session();
 
-	return status;
-}
+// 	return status;
+// }
 
 sgx_status_t enclave_ra_init(sgx_ec256_public_t key, int b_pse,
 	sgx_ra_context_t *ctx, sgx_status_t *pse_status)
@@ -156,6 +160,7 @@ sgx_status_t ecall_verify_proof(char *str, size_t cipher_size)
 {
     ocall_print("Enclave: Inside enclave to verify the proof");
 
+	/* TODO: decrypt proof */
     // struct private_key_class priv[1];
     // // unseal private key for use decrypting
     // uint32_t plaintext_size = sizeof(struct private_key_class);
@@ -180,8 +185,10 @@ sgx_status_t ecall_verify_proof(char *str, size_t cipher_size)
     // ocall_print(decrypted);
 	ocall_print((const char *)str);
 
+	/* TODO: verify proof */
     // verify proof
-    // verify(decrypted)
+	// verify(str);
+    // verify(decrypted);
     // free(decrypted);
 
     return SGX_SUCCESS;

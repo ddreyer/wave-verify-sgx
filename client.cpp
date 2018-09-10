@@ -103,7 +103,7 @@ sgx_status_t sgx_create_enclave_search (
 
 void usage();
 int do_verify(sgx_enclave_id_t eid, config_t *config);
-int do_quote(sgx_enclave_id_t eid, config_t *config);
+// int do_quote(sgx_enclave_id_t eid, config_t *config);
 int do_attestation(sgx_enclave_id_t eid, config_t *config);
 
 char debug= 0;
@@ -406,24 +406,26 @@ int main (int argc, char *argv[])
 #endif
 
 	/* for now, just do proof verification with no attestation */
+	/* TODO: how to establish initial connection */
 	do_verify(eid, &config);
 	return 0;
 
 	/* Are we attesting, or just spitting out a quote? */
 
-	if ( config.mode == MODE_ATTEST ) {
-		do_attestation(eid, &config);
-	} else if ( config.mode == MODE_EPID || config.mode == MODE_QUOTE ) {
-		do_quote(eid, &config);
-	} else {
-		fprintf(stderr, "Unknown operation mode.\n");
-		return 1;
-	}
+	// if ( config.mode == MODE_ATTEST ) {
+	// 	do_attestation(eid, &config);
+	// } else if ( config.mode == MODE_EPID || config.mode == MODE_QUOTE ) {
+	// 	do_quote(eid, &config);
+	// } else {
+	// 	fprintf(stderr, "Unknown operation mode.\n");
+	// 	return 1;
+	// }
 
      
 	close_logfile(fplog);
 }
 
+/* TODO: combine verify/attestation functions */
 int do_verify(sgx_enclave_id_t eid, config_t *config)
 {
 	sgx_status_t status, sgxrv, pse_status;
@@ -504,7 +506,7 @@ int do_verify(sgx_enclave_id_t eid, config_t *config)
 		exit(1);
 	}
 
-	// pass cipher into enclave to decrypt and verify
+	/* pass cipher into enclave to decrypt and verify */
     status = ecall_verify_proof(eid, &sgxrv, proof_info->proof_contents,
         proof_info->size);
 
@@ -551,6 +553,7 @@ int do_attestation (sgx_enclave_id_t eid, config_t *config)
 	 *
 	 * This is diagnostic/test application, however, so we have
 	 * the flexibility of a dynamically assigned key.
+	 * TODO: figure this out
 	 */
 
 	/* Executes an ECALL that runs sgx_ra_init() */
@@ -919,175 +922,175 @@ int do_attestation (sgx_enclave_id_t eid, config_t *config)
  *----------------------------------------------------------------------
  */
 
-int do_quote(sgx_enclave_id_t eid, config_t *config)
-{
-	sgx_status_t status, sgxrv;
-	sgx_quote_t *quote;
-	sgx_report_t report;
-	sgx_report_t qe_report;
-	sgx_target_info_t target_info;
-	sgx_epid_group_id_t epid_gid;
-	uint32_t sz= 0;
-	uint32_t flags= config->flags;
-	sgx_quote_sign_type_t linkable= SGX_UNLINKABLE_SIGNATURE;
-	sgx_ps_cap_t ps_cap;
-	char *pse_manifest = NULL;
-	size_t pse_manifest_sz;
-#ifdef _WIN32
-	LPTSTR b64quote = NULL;
-	DWORD sz_b64quote = 0;
-	LPTSTR b64manifest = NULL;
-	DWORD sz_b64manifest = 0;
-#else
-	char  *b64quote= NULL;
-	char *b64manifest = NULL;
-#endif
+// int do_quote(sgx_enclave_id_t eid, config_t *config)
+// {
+// 	sgx_status_t status, sgxrv;
+// 	sgx_quote_t *quote;
+// 	sgx_report_t report;
+// 	sgx_report_t qe_report;
+// 	sgx_target_info_t target_info;
+// 	sgx_epid_group_id_t epid_gid;
+// 	uint32_t sz= 0;
+// 	uint32_t flags= config->flags;
+// 	sgx_quote_sign_type_t linkable= SGX_UNLINKABLE_SIGNATURE;
+// 	sgx_ps_cap_t ps_cap;
+// 	char *pse_manifest = NULL;
+// 	size_t pse_manifest_sz;
+// #ifdef _WIN32
+// 	LPTSTR b64quote = NULL;
+// 	DWORD sz_b64quote = 0;
+// 	LPTSTR b64manifest = NULL;
+// 	DWORD sz_b64manifest = 0;
+// #else
+// 	char  *b64quote= NULL;
+// 	char *b64manifest = NULL;
+// #endif
 
- 	if (OPT_ISSET(flags, OPT_LINK)) linkable= SGX_LINKABLE_SIGNATURE;
+//  	if (OPT_ISSET(flags, OPT_LINK)) linkable= SGX_LINKABLE_SIGNATURE;
 
-	/* Platform services info */
-	if (OPT_ISSET(flags, OPT_PSE)) {
-		status = sgx_get_ps_cap(&ps_cap);
-		if (status != SGX_SUCCESS) {
-			fprintf(stderr, "sgx_get_ps_cap: %08x\n", status);
-			return 1;
-		}
+// 	/* Platform services info */
+// 	if (OPT_ISSET(flags, OPT_PSE)) {
+// 		status = sgx_get_ps_cap(&ps_cap);
+// 		if (status != SGX_SUCCESS) {
+// 			fprintf(stderr, "sgx_get_ps_cap: %08x\n", status);
+// 			return 1;
+// 		}
 
-		status = get_pse_manifest_size(eid, &pse_manifest_sz);
-		if (status != SGX_SUCCESS) {
-			fprintf(stderr, "get_pse_manifest_size: %08x\n",
-				status);
-			return 1;
-		}
+// 		status = get_pse_manifest_size(eid, &pse_manifest_sz);
+// 		if (status != SGX_SUCCESS) {
+// 			fprintf(stderr, "get_pse_manifest_size: %08x\n",
+// 				status);
+// 			return 1;
+// 		}
 
-		pse_manifest = (char *) malloc(pse_manifest_sz);
+// 		pse_manifest = (char *) malloc(pse_manifest_sz);
 
-		status = get_pse_manifest(eid, &sgxrv, pse_manifest, pse_manifest_sz);
-		if (status != SGX_SUCCESS) {
-			fprintf(stderr, "get_pse_manifest: %08x\n",
-				status);
-			return 1;
-		}
-		if (sgxrv != SGX_SUCCESS) {
-			fprintf(stderr, "get_sec_prop_desc_ex: %08x\n",
-				sgxrv);
-			return 1;
-		}
-	}
+// 		status = get_pse_manifest(eid, &sgxrv, pse_manifest, pse_manifest_sz);
+// 		if (status != SGX_SUCCESS) {
+// 			fprintf(stderr, "get_pse_manifest: %08x\n",
+// 				status);
+// 			return 1;
+// 		}
+// 		if (sgxrv != SGX_SUCCESS) {
+// 			fprintf(stderr, "get_sec_prop_desc_ex: %08x\n",
+// 				sgxrv);
+// 			return 1;
+// 		}
+// 	}
 
-	/* Get our quote */
+// 	/* Get our quote */
 
-	memset(&report, 0, sizeof(report));
+// 	memset(&report, 0, sizeof(report));
 
-	status= sgx_init_quote(&target_info, &epid_gid);
-	if ( status != SGX_SUCCESS ) {
-		fprintf(stderr, "sgx_init_quote: %08x\n", status);
-		return 1;
-	}
+// 	status= sgx_init_quote(&target_info, &epid_gid);
+// 	if ( status != SGX_SUCCESS ) {
+// 		fprintf(stderr, "sgx_init_quote: %08x\n", status);
+// 		return 1;
+// 	}
 
-	/* Did they ask for just the EPID? */
-	if ( config->mode == MODE_EPID ) {
-		printf("%08x\n", *(uint32_t *)epid_gid);
-		exit(0);
-	}
+// 	/* Did they ask for just the EPID? */
+// 	if ( config->mode == MODE_EPID ) {
+// 		printf("%08x\n", *(uint32_t *)epid_gid);
+// 		exit(0);
+// 	}
 
-	status= get_report(eid, &sgxrv, &report, &target_info);
-	if ( status != SGX_SUCCESS ) {
-		fprintf(stderr, "get_report: %08x\n", status);
-		return 1;
-	}
-	if ( sgxrv != SGX_SUCCESS ) {
-		fprintf(stderr, "sgx_create_report: %08x\n", sgxrv);
-		return 1;
-	}
+// 	status= get_report(eid, &sgxrv, &report, &target_info);
+// 	if ( status != SGX_SUCCESS ) {
+// 		fprintf(stderr, "get_report: %08x\n", status);
+// 		return 1;
+// 	}
+// 	if ( sgxrv != SGX_SUCCESS ) {
+// 		fprintf(stderr, "sgx_create_report: %08x\n", sgxrv);
+// 		return 1;
+// 	}
 
-	// sgx_get_quote_size() has been deprecated, but our PSW may be too old
-	// so use a wrapper function.
+// 	// sgx_get_quote_size() has been deprecated, but our PSW may be too old
+// 	// so use a wrapper function.
 
-	if (! get_quote_size(&status, &sz)) {
-		fprintf(stderr, "PSW missing sgx_get_quote_size() and sgx_calc_quote_size()\n");
-		return 1;
-	}
-	if ( status != SGX_SUCCESS ) {
-		fprintf(stderr, "SGX error while getting quote size: %08x\n", status);
-		return 1;
-	}
+// 	if (! get_quote_size(&status, &sz)) {
+// 		fprintf(stderr, "PSW missing sgx_get_quote_size() and sgx_calc_quote_size()\n");
+// 		return 1;
+// 	}
+// 	if ( status != SGX_SUCCESS ) {
+// 		fprintf(stderr, "SGX error while getting quote size: %08x\n", status);
+// 		return 1;
+// 	}
 
-	quote= (sgx_quote_t *) malloc(sz);
-	if ( quote == NULL ) {
-		fprintf(stderr, "out of memory\n");
-		return 1;
-	}
+// 	quote= (sgx_quote_t *) malloc(sz);
+// 	if ( quote == NULL ) {
+// 		fprintf(stderr, "out of memory\n");
+// 		return 1;
+// 	}
 
-	memset(quote, 0, sz);
-	status= sgx_get_quote(&report, linkable, &config->spid,
-		(OPT_ISSET(flags, OPT_NONCE)) ? &config->nonce : NULL,
-		NULL, 0,
-		(OPT_ISSET(flags, OPT_NONCE)) ? &qe_report : NULL, 
-		quote, sz);
-	if ( status != SGX_SUCCESS ) {
-		fprintf(stderr, "sgx_get_quote: %08x\n", status);
-		return 1;
-	}
+// 	memset(quote, 0, sz);
+// 	status= sgx_get_quote(&report, linkable, &config->spid,
+// 		(OPT_ISSET(flags, OPT_NONCE)) ? &config->nonce : NULL,
+// 		NULL, 0,
+// 		(OPT_ISSET(flags, OPT_NONCE)) ? &qe_report : NULL, 
+// 		quote, sz);
+// 	if ( status != SGX_SUCCESS ) {
+// 		fprintf(stderr, "sgx_get_quote: %08x\n", status);
+// 		return 1;
+// 	}
 
-	/* Print our quote */
+// 	/* Print our quote */
 
-#ifdef _WIN32
-	// We could also just do ((4 * sz / 3) + 3) & ~3
-	// but it's cleaner to use the API.
+// #ifdef _WIN32
+// 	// We could also just do ((4 * sz / 3) + 3) & ~3
+// 	// but it's cleaner to use the API.
 
-	if (CryptBinaryToString((BYTE *) quote, sz, CRYPT_STRING_BASE64|CRYPT_STRING_NOCRLF, NULL, &sz_b64quote) == FALSE) {
-		fprintf(stderr, "CryptBinaryToString: could not get Base64 encoded quote length\n");
-		return 1;
-	}
+// 	if (CryptBinaryToString((BYTE *) quote, sz, CRYPT_STRING_BASE64|CRYPT_STRING_NOCRLF, NULL, &sz_b64quote) == FALSE) {
+// 		fprintf(stderr, "CryptBinaryToString: could not get Base64 encoded quote length\n");
+// 		return 1;
+// 	}
 
-	b64quote = (LPTSTR)(malloc(sz_b64quote));
-	if (CryptBinaryToString((BYTE *) quote, sz, CRYPT_STRING_BASE64|CRYPT_STRING_NOCRLF, b64quote, &sz_b64quote) == FALSE) {
-		fprintf(stderr, "CryptBinaryToString: could not get Base64 encoded quote length\n");
-		return 1;
-	}
+// 	b64quote = (LPTSTR)(malloc(sz_b64quote));
+// 	if (CryptBinaryToString((BYTE *) quote, sz, CRYPT_STRING_BASE64|CRYPT_STRING_NOCRLF, b64quote, &sz_b64quote) == FALSE) {
+// 		fprintf(stderr, "CryptBinaryToString: could not get Base64 encoded quote length\n");
+// 		return 1;
+// 	}
 
-	if (OPT_ISSET(flags, OPT_PSE)) {
-		if (CryptBinaryToString((BYTE *)pse_manifest, (uint32_t)(pse_manifest_sz), CRYPT_STRING_BASE64 | CRYPT_STRING_NOCRLF, NULL, &sz_b64manifest) == FALSE) {
-			fprintf(stderr, "CryptBinaryToString: could not get Base64 encoded manifest length\n");
-			return 1;
-		}
+// 	if (OPT_ISSET(flags, OPT_PSE)) {
+// 		if (CryptBinaryToString((BYTE *)pse_manifest, (uint32_t)(pse_manifest_sz), CRYPT_STRING_BASE64 | CRYPT_STRING_NOCRLF, NULL, &sz_b64manifest) == FALSE) {
+// 			fprintf(stderr, "CryptBinaryToString: could not get Base64 encoded manifest length\n");
+// 			return 1;
+// 		}
 
-		b64manifest = (LPTSTR)(malloc(sz_b64manifest));
-		if (CryptBinaryToString((BYTE *)pse_manifest, (uint32_t)(pse_manifest_sz), CRYPT_STRING_BASE64 | CRYPT_STRING_NOCRLF, b64manifest, &sz_b64manifest) == FALSE) {
-			fprintf(stderr, "CryptBinaryToString: could not get Base64 encoded manifest length\n");
-			return 1;
-		}
-	}
+// 		b64manifest = (LPTSTR)(malloc(sz_b64manifest));
+// 		if (CryptBinaryToString((BYTE *)pse_manifest, (uint32_t)(pse_manifest_sz), CRYPT_STRING_BASE64 | CRYPT_STRING_NOCRLF, b64manifest, &sz_b64manifest) == FALSE) {
+// 			fprintf(stderr, "CryptBinaryToString: could not get Base64 encoded manifest length\n");
+// 			return 1;
+// 		}
+// 	}
 
-#else
-	b64quote= base64_encode((char *) quote, sz);
+// #else
+// 	b64quote= base64_encode((char *) quote, sz);
 
-	if (OPT_ISSET(flags, OPT_PSE)) {
-		b64manifest= base64_encode((char *) pse_manifest, pse_manifest_sz);
-	}
-#endif
+// 	if (OPT_ISSET(flags, OPT_PSE)) {
+// 		b64manifest= base64_encode((char *) pse_manifest, pse_manifest_sz);
+// 	}
+// #endif
 
-	printf("{\n");
-	printf("\"isvEnclaveQuote\":\"%s\"", b64quote);
-	if ( OPT_ISSET(flags, OPT_NONCE) ) {
-		printf(",\n\"nonce\":\"");
-		print_hexstring(stdout, &config->nonce, 16);
-		printf("\"");
-	}
+// 	printf("{\n");
+// 	printf("\"isvEnclaveQuote\":\"%s\"", b64quote);
+// 	if ( OPT_ISSET(flags, OPT_NONCE) ) {
+// 		printf(",\n\"nonce\":\"");
+// 		print_hexstring(stdout, &config->nonce, 16);
+// 		printf("\"");
+// 	}
 
-	if (OPT_ISSET(flags, OPT_PSE)) {
-		printf(",\n\"pseManifest\":\"%s\"", b64manifest);	
-	}
-	printf("\n}\n");
+// 	if (OPT_ISSET(flags, OPT_PSE)) {
+// 		printf(",\n\"pseManifest\":\"%s\"", b64manifest);	
+// 	}
+// 	printf("\n}\n");
 
-#ifdef SGX_HW_SIM
-	fprintf(stderr, "WARNING! Built in h/w simulation mode. This quote will not be verifiable.\n");
-#endif
+// #ifdef SGX_HW_SIM
+// 	fprintf(stderr, "WARNING! Built in h/w simulation mode. This quote will not be verifiable.\n");
+// #endif
 
-	return 0;
+// 	return 0;
 
-}
+// }
 
 /*
  * Search for the enclave file and then try and load it.

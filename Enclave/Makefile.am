@@ -62,7 +62,7 @@ ENCLAVE_KEY=$(ENCLAVE)_private.pem
 ## AM_CPPFLAGS += 
 ## AM_CXXFLAGS +=
 
-AM_CPPFLAGS += -I..
+AM_CPPFLAGS += -I.. -I$(SGX_SDK)/include/libcxx -I/usr/local/asn1cpp/include
 
 ## Additional files to remove with 'make clean'. This list needs
 ## to include your edger8r genreated files.
@@ -74,7 +74,7 @@ CLEANFILES+= $(ENCLAVE)_t.c $(ENCLAVE)_t.h
 ## files. You can't use the $(ENCLAVE) variable in the build
 ## target name (i.e., $(ENCLAVE)_SOURCES will not work).
 
-Enclave_SOURCES = Enclave_t.c Enclave_t.h Enclave.cpp \
+Enclave_SOURCES = Enclave_t.c Enclave_t.h Enclave.cpp verify.cpp \
 	$(ENCLAVE_KEY) $(ENCLAVE_CONFIG)
 
 
