@@ -3,7 +3,7 @@
 
 #include "Enclave_t.h"
 
-#include "objects.h"
+// #include "objects.h"
 // #include "aes-gcm/gcm.h"
 // #include "ed25519/src/ed25519.h"
 // #include "hash-library/keccak.h"

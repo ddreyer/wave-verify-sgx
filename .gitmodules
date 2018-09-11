@@ -1,0 +1,9 @@
+[submodule "Enclave/hash-library"]
+	path = enclave/hash-library
+	url = http://create.stephan-brumme.com/hash-library/.git
+[submodule "Enclave/ed25519"]
+	path = enclave/ed25519
+	url = git@github.com:orlp/ed25519.git
+[submodule "Enclave/aes-gcm"]
+	path = enclave/aes-gcm
+	url = git@github.com:theicfire/aes-gcm.git

@@ -752,7 +752,7 @@ int process_msg3 (MsgIO *msgio, IAS_Connection *ias, sgx_ra_msg1_t *msg1,
 		sgx_report_body_t *r= (sgx_report_body_t *) &q->report_body;
 
 		/*
-		 * TODO:
+		 * TODO: maybe obtain this through same medium as enclave's public key
 		 * A real service provider would validate that the enclave
 		 * report is from an enclave that they recognize. Namely,
 		 *  that the MRSIGNER matches our signing key, and the MRENCLAVE
