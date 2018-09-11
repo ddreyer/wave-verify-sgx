@@ -752,7 +752,7 @@ int process_msg3 (MsgIO *msgio, IAS_Connection *ias, sgx_ra_msg1_t *msg1,
 		sgx_report_body_t *r= (sgx_report_body_t *) &q->report_body;
 
 		/*
-		 * TODO: maybe obtain this through same medium as enclave's public key
+		 * TODO: maybe obtain MRSIGNER and MRENCLAVE through same medium as enclave's public key
 		 * A real service provider would validate that the enclave
 		 * report is from an enclave that they recognize. Namely,
 		 *  that the MRSIGNER matches our signing key, and the MRENCLAVE
@@ -763,6 +763,16 @@ int process_msg3 (MsgIO *msgio, IAS_Connection *ias, sgx_ra_msg1_t *msg1,
 		 * attesting, and ensuring the TCB is not out of date.
 		 */
 
+		// TODO: fix this once above is implemented
+		/* compare known MRSIGNER and MRENCLAVE with received values */
+		if CRYPTO_memcmp(&r->mr_signer, &r->mr_signer, sizeof(sgx_measurement_t)) {
+			eprintf("MRSIGNER values don't match\n");
+			return 0;
+		}
+		if CRYPTO_memcmp(&r->mr_enclave, &r->mr_enclave, sizeof(sgx_measurement_t)) {
+			eprintf("MRENCLAVE values don't match\n");
+			return 0;
+		}
 		if ( verbose ) {
 			edivider();
 
