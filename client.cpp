@@ -354,7 +354,7 @@ int main (int argc, char *argv[])
 		}
 	}
 
-	if ( ! have_spid && ! config.mode == MODE_EPID ) {
+	if ( ! have_spid && config.mode != MODE_EPID ) {
 		fprintf(stderr, "SPID required. Use one of --spid or --spid-file \n");
 		return 1;
 	}
@@ -531,7 +531,7 @@ int do_attestation (sgx_enclave_id_t eid, config_t *config)
 	int rv;
 	MsgIO *msgio;
 	size_t msg4sz = 0;
-	int enclaveTrusted = 1; // Not Trusted
+	int enclaveTrusted = NotTrusted; // Not Trusted
 	int b_pse= OPT_ISSET(flags, OPT_PSE);
 
 	if ( config->server == NULL ) {
@@ -817,17 +817,23 @@ int do_attestation (sgx_enclave_id_t eid, config_t *config)
 
 	edividerWithText("Enclave Trust Status from Service Provider");
 
-	if ( msg4->status == Trusted ) {
+	enclaveTrusted= msg4->status;
+	if ( enclaveTrusted == Trusted ) {
 		eprintf("Enclave TRUSTED\n");
-		enclaveTrusted = 0; // Trusted
 	}
-	else if (msg4->status == NotTrusted ) {
+	else if ( enclaveTrusted == NotTrusted ) {
 		eprintf("Enclave NOT TRUSTED\n");
-		enclaveTrusted = 1; // Not Trusted
 	}
-	else {
-		eprintf("Enclave Trust is OTHER\n");
-		enclaveTrusted = 2; // Not Trusted
+	else if ( enclaveTrusted == Trusted_ItsComplicated ) {
+		// Trusted, but client may be untrusted in the future unless it
+		// takes action.
+
+		eprintf("Enclave Trust is TRUSTED and COMPLICATED. The client is out of date and\nmay not be trusted in the future depending on the service provider's  policy.\n");
+	} else {
+		// Not Trusted, but client may be able to take action to become
+		// trusted.
+
+		eprintf("Enclave Trust is NOT TRUSTED and COMPLICATED. The client is out of date.\n");
 	}
 
 	/* check to see if we have a PIB by comparing to empty PIB */
@@ -853,7 +859,7 @@ int do_attestation (sgx_enclave_id_t eid, config_t *config)
 		sgx_status_t ret = sgx_report_attestation_status(&msg4->platformInfoBlob, 
 			enclaveTrusted, &update_info);
 
-		if ( debug )  eprintf("+++ sgx_report_attestation_status ret = 0x%4x\n", ret);
+		if ( debug )  eprintf("+++ sgx_report_attestation_status ret = 0x%04x\n", ret);
 
 		edivider();
 
@@ -878,6 +884,46 @@ int do_attestation (sgx_enclave_id_t eid, config_t *config)
 			}                                           
 			eprintf("\n");
 			edivider();      
+		}
+	}
+
+	/*
+	 * If the enclave is trusted, fetch a hash of the the MK and SK from
+	 * the enclave to show proof of a shared secret with the service 
+	 * provider.
+	 */
+
+	if ( enclaveTrusted == Trusted ) {
+		sgx_status_t key_status, sha_status;
+		sgx_sha256_hash_t mkhash, skhash;
+
+		// First the MK
+
+		if ( debug ) eprintf("+++ fetching SHA256(MK)\n");
+		status= enclave_ra_get_key_hash(eid, &sha_status, &key_status, ra_ctx,
+			SGX_RA_KEY_MK, &mkhash);
+		if ( debug ) eprintf("+++ ECALL enclage_ra_get_key_hash (MK) ret= 0x%04x\n",
+			status);
+
+		if ( debug ) eprintf("+++ sgx_ra_get_keys (MK) ret= 0x%04x\n", key_status);
+		// Then the SK
+
+		if ( debug ) eprintf("+++ fetching SHA256(SK)\n");
+		status= enclave_ra_get_key_hash(eid, &sha_status, &key_status, ra_ctx,
+			SGX_RA_KEY_SK, &skhash);
+		if ( debug ) eprintf("+++ ECALL enclage_ra_get_key_hash (MK) ret= 0x%04x\n",
+			status);
+
+		if ( debug ) eprintf("+++ sgx_ra_get_keys (MK) ret= 0x%04x\n", key_status);
+		if ( verbose ) {
+			eprintf("SHA256(MK) = ");
+			print_hexstring(stderr, mkhash, sizeof(mkhash));
+			print_hexstring(fplog, mkhash, sizeof(mkhash));
+			eprintf("\n");
+			eprintf("SHA256(SK) = ");
+			print_hexstring(stderr, skhash, sizeof(skhash));
+			print_hexstring(fplog, skhash, sizeof(skhash));
+			eprintf("\n");
 		}
 	}
 

@@ -23,6 +23,7 @@ in the License.
 #include <sgx_utils.h>
 #include <sgx_tae_service.h>
 #include <sgx_tkey_exchange.h>
+#include <sgx_tcrypto.h>
 
 // #include "verify.h"
 #include <string>
@@ -192,6 +193,37 @@ sgx_status_t ecall_verify_proof(char *str, size_t cipher_size)
     // free(decrypted);
 
     return SGX_SUCCESS;
+/*
+ * Return a SHA256 hash of the requested key. KEYS SHOULD NEVER BE
+ * SENT OUTSIDE THE ENCLAVE IN PLAIN TEXT. This function let's us
+ * get proof of possession of the key without exposing it to untrusted
+ * memory.
+ */
+
+sgx_status_t enclave_ra_get_key_hash(sgx_status_t *get_keys_ret,
+	sgx_ra_context_t ctx, sgx_ra_key_type_t type, sgx_sha256_hash_t *hash)
+{
+	sgx_status_t sha_ret;
+	sgx_ra_key_128_t k;
+
+	// First get the requested key which is one of:
+	//  * SGX_RA_KEY_MK 
+	//  * SGX_RA_KEY_SK
+	// per sgx_ra_get_keys().
+
+	*get_keys_ret= sgx_ra_get_keys(ctx, type, &k);
+	if ( *get_keys_ret != SGX_SUCCESS ) return *get_keys_ret;
+
+	/* Now generate a SHA hash */
+
+	sha_ret= sgx_sha256_msg((const uint8_t *) &k, sizeof(k), 
+		(sgx_sha256_hash_t *) hash); // Sigh.
+
+	/* Let's be thorough */
+
+	memset(k, 0, sizeof(k));
+
+	return sha_ret;
 }
 
 sgx_status_t enclave_ra_close(sgx_ra_context_t ctx)

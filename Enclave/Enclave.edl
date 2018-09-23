@@ -41,6 +41,12 @@ enclave {
 
 		public sgx_status_t ecall_verify_proof([in,size=cipher_size] char *str,
         	size_t cipher_size);
+		public sgx_status_t enclave_ra_get_key_hash(
+			[out] sgx_status_t *get_keys_status, sgx_ra_context_t ctx,
+			sgx_ra_key_type_t type, [out] sgx_sha256_hash_t *hash);
+
+		public sgx_status_t enclave_ra_close(sgx_ra_context_t ctx);
+
 	};
 
 	untrusted {

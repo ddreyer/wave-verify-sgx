@@ -32,13 +32,13 @@ in the License.
  */
 
 /*
- * This doesn't have to be binary. You could, in theory, return a
- * "trusted, with conditions" response, for example, if IAS reports
- * GROUP_OUT_OF_DATE.
+ * This doesn't have to be binary. 
  */
 
 typedef enum {
 	NotTrusted = 0,
+	NotTrusted_ItsComplicated,
+	Trusted_ItsComplicated,
 	Trusted
 } attestation_status_t;
 
