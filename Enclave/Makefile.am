@@ -74,7 +74,7 @@ CLEANFILES+= $(ENCLAVE)_t.c $(ENCLAVE)_t.h
 ## files. You can't use the $(ENCLAVE) variable in the build
 ## target name (i.e., $(ENCLAVE)_SOURCES will not work).
 
-Enclave_SOURCES = Enclave_t.c Enclave_t.h Enclave.cpp verify.cpp \
+Enclave_SOURCES = Enclave_t.c Enclave_t.h Enclave.cpp \
 	$(ENCLAVE_KEY) $(ENCLAVE_CONFIG)
 
 
@@ -84,7 +84,8 @@ Enclave_SOURCES = Enclave_t.c Enclave_t.h Enclave.cpp verify.cpp \
 ## Be sure to use += to add to, and not replace, the default 
 ## AM_LDFLAGS.
 ##
-## AM_LDFLAGS += 
+
+AM_LDFLAGS += -L$(SGXSSL_LIBDIR)
 
 
 ## This line is REQUIRED. It can't be generically defined for 
@@ -102,7 +103,7 @@ Enclave_LDADD = @SGX_ENCLAVE_LDADD@
 ## --startgroup and --endgroup flags. (This would be where you'd add
 ## SGXSSL libraries, and your trusted c++ library
 
-SGX_EXTRA_TLIBS=-lsgx_tkey_exchange -lsgx_tcxx
+SGX_EXTRA_TLIBS=-lsgx_tkey_exchange -lsgx_tcxx -lsgx_tsgxssl_crypto
 
 
 ## This line is OPTIONAL, and comes with a WARNING.

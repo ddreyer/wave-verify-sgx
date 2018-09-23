@@ -765,11 +765,11 @@ int process_msg3 (MsgIO *msgio, IAS_Connection *ias, sgx_ra_msg1_t *msg1,
 
 		// TODO: fix this once above is implemented
 		/* compare known MRSIGNER and MRENCLAVE with received values */
-		if CRYPTO_memcmp(&r->mr_signer, &r->mr_signer, sizeof(sgx_measurement_t)) {
+		if (CRYPTO_memcmp(&r->mr_signer, &r->mr_signer, sizeof(sgx_measurement_t))) {
 			eprintf("MRSIGNER values don't match\n");
 			return 0;
 		}
-		if CRYPTO_memcmp(&r->mr_enclave, &r->mr_enclave, sizeof(sgx_measurement_t)) {
+		if (CRYPTO_memcmp(&r->mr_enclave, &r->mr_enclave, sizeof(sgx_measurement_t))) {
 			eprintf("MRENCLAVE values don't match\n");
 			return 0;
 		}
