@@ -41,6 +41,7 @@ include $(top_srcdir)/build-aux/sgx_enclave.am
 ##   SGX_EDGER8R
 ##   SGX_SIGN
 
+SUBDIRS = wave-verify
 
 ## Supply additional flags to edger8r here. 
 

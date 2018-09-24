@@ -193,6 +193,8 @@ sgx_status_t ecall_verify_proof(char *str, size_t cipher_size)
     // free(decrypted);
 
     return SGX_SUCCESS;
+}
+
 /*
  * Return a SHA256 hash of the requested key. KEYS SHOULD NEVER BE
  * SENT OUTSIDE THE ENCLAVE IN PLAIN TEXT. This function let's us
