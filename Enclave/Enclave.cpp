@@ -25,8 +25,7 @@ in the License.
 #include <sgx_tkey_exchange.h>
 #include <sgx_tcrypto.h>
 
-// #include "verify.h"
-#include <string>
+#include <verify.h>
 
 /* TODO: how to manage clients pub key */
 static const sgx_ec256_public_t def_service_public_key = {

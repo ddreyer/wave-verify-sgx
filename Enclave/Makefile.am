@@ -1,6 +1,7 @@
 ## This line must come first when building an Intel SGX enclave.
 
 include $(top_srcdir)/build-aux/sgx_enclave.am
+include Makefile.am.libasncodec
 
 ## It sets the following Automake variables:
 ##
@@ -41,8 +42,6 @@ include $(top_srcdir)/build-aux/sgx_enclave.am
 ##   SGX_EDGER8R
 ##   SGX_SIGN
 
-SUBDIRS = wave-verify
-
 ## Supply additional flags to edger8r here. 
 
 SGX_EDGER8R_FLAGS=--search-path ..
@@ -63,7 +62,7 @@ ENCLAVE_KEY=$(ENCLAVE)_private.pem
 ## AM_CPPFLAGS += 
 ## AM_CXXFLAGS +=
 
-AM_CPPFLAGS += -I.. -I$(SGX_SDK)/include/libcxx -I/usr/local/asn1cpp/include
+AM_CPPFLAGS += -I.. -I$(SGX_SDK)/include/libcxx -Iwave-verify -Iwave-verify/asn1c_files -DASN_PDU_COLLECTION
 
 ## Additional files to remove with 'make clean'. This list needs
 ## to include your edger8r genreated files.
@@ -74,8 +73,19 @@ CLEANFILES+= $(ENCLAVE)_t.c $(ENCLAVE)_t.h
 ## Put your sources here. Don't forget to list the _t.c and _t.h 
 ## files. You can't use the $(ENCLAVE) variable in the build
 ## target name (i.e., $(ENCLAVE)_SOURCES will not work).
+AUTOMAKE_OPTIONS = subdir-objects
 
-Enclave_SOURCES = Enclave_t.c Enclave_t.h Enclave.cpp \
+# AES_SRCS=wave-verify/aes-gcm/aes.c wave-verify/aes-gcm/cipher.c wave-verify/aes-gcm/cipher_wrap.c wave-verify/aes-gcm/gcm.c wave-verify/aes-gcm/utils.c
+
+# ED_SRCS=wave-verify/ed25519/src/add_scalar.c wave-verify/ed25519/src/
+
+HASH_SRCS=wave-verify/hash-library/keccak.cpp
+
+ASN_PROGRAM_SRCS = wave-verify/utils.cpp\
+	wave-verify/asn.cpp\
+	wave-verify/verify.cpp
+
+Enclave_SOURCES = $(HASH_SRCS) $(AES_SRCS) $(ASN_MODULE_SRCS) $(ASN_PROGRAM_SRCS) Enclave_t.c Enclave_t.h Enclave.cpp \
 	$(ENCLAVE_KEY) $(ENCLAVE_CONFIG)
 
 

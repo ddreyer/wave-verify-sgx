@@ -494,15 +494,15 @@ int do_verify(sgx_enclave_id_t eid, config_t *config)
 
 	/* read proof info */
 	rv= msgio->read((void **) &proof_info, NULL);
-	printf("Enclave app: Retrieved proof info from client\n");
+	printf("Enclave app: Retrieved proof from client\n");
 
 	if ( rv == 0 ) {
                 enclave_ra_close(eid, &sgxrv, ra_ctx);
-		fprintf(stderr, "protocol error reading msg2\n");
+		fprintf(stderr, "protocol error reading proof from client\n");
 		exit(1);
 	} else if ( rv == -1 ) {
                 enclave_ra_close(eid, &sgxrv, ra_ctx);
-		fprintf(stderr, "system error occurred while reading msg2\n");
+		fprintf(stderr, "system error occurred while reading proof from client\n");
 		exit(1);
 	}
 

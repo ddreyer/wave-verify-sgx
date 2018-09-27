@@ -25,6 +25,13 @@
                     "**/*",
                 ],
                 "deployOnSave": true
+            },
+            {
+                "name": "wave verify module",
+                "files": [
+                    "**/Enclave/wave-verify/*",
+                ],
+                "deployOnChange": true
             }
         ]
     },
@@ -46,6 +53,9 @@
         "map": "cpp",
         "string": "cpp",
         "string_view": "cpp",
-        "vector": "cpp"
+        "vector": "cpp",
+        "cstdlib": "cpp",
+        "chrono": "cpp",
+        "unordered_map": "cpp"
     }
 }

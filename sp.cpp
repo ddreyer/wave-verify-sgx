@@ -544,9 +544,9 @@ int main(int argc, char *argv[])
 	}
 
 	/* for now, send the proof contents to the enclave */
-	/* TODO: how to establish initial connection and decide whether to do attestation
-	// send_proof(msgio);
-	// return 0;
+	/* TODO: how to establish initial connection and decide whether to do attestation */
+	send_proof(msgio);
+	return 0;
 
  	/* If we're running in server mode, we'll block here.  */
 
@@ -609,7 +609,7 @@ int send_proof(MsgIO *msgio) {
 	msgio->server_loop();
 	printf("Reading in proof PEM file...\n");
 
-    string proofFile("proof.pem");
+    string proofFile("proof0.2.2.pem");
     ifstream t(proofFile);
     string pemStr((istreambuf_iterator<char>(t)),
                              istreambuf_iterator<char>());
