@@ -30,7 +30,7 @@ SUBDIRS = Enclave
 
 ## Supply additional flags to edger8r here. 
 ##
-## SGX_EDGER8R_FLAGS=
+SGX_EDGER8R_FLAGS=--search-path /home/sgx/intel-sgx-ssl/Linux/package/include
 
 
 ## Needed to make our pattern rule work
@@ -77,7 +77,7 @@ nodist_client_SOURCES = Enclave_u.c Enclave_u.h
 EXTRA_client_DEPENDENCIES = Enclave.signed.so
 BUILT_SOURCES = Enclave_u.c Enclave_u.h
 
-client_LDFLAGS= $(AM_LDFLAGS) @OPENSSL_LDFLAGS@
+client_LDFLAGS= $(AM_LDFLAGS) @OPENSSL_LDFLAGS@ -L/home/sgx/intel-sgx-ssl/Linux/package/lib64
 
 ## sp
 
@@ -101,7 +101,7 @@ sp_LDFLAGS= $(AM_LDFLAGS) @OPENSSL_LDFLAGS@ @CURL_LDFLAGS@
 ## targets work on simulation builds.
 
 client_LDADD=-l$(SGX_URTS_LIB) -lsgx_ukey_exchange -l$(SGX_UAE_SERVICE_LIB) \
-	-lcrypto -l:libsgx_capable.a -lpthread -ldl
+	-lcrypto -l:libsgx_capable.a -lpthread -ldl -lsgx_usgxssl
 
 sp_LDADD=-lcrypto @CURL_LIBS@
 

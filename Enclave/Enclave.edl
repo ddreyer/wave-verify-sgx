@@ -26,7 +26,8 @@ enclave {
 	include "time.h"
 
 	from "sgx_tkey_exchange.edl" import *;
-
+	from "sgx_tsgxssl.edl" import *;
+	
 	trusted {
 #ifndef _WIN32
 		include "config.h"

@@ -514,6 +514,7 @@ int do_verify(sgx_enclave_id_t eid, config_t *config)
 		fprintf(stderr, "ecall_verify_proof: %08x\n", sgxrv);
 		return 1;
 	}
+	enclave_ra_close(eid, &sgxrv, ra_ctx);
 	return 0;
 }
 

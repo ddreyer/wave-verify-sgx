@@ -186,12 +186,11 @@ sgx_status_t ecall_verify_proof(char *str, size_t cipher_size)
 	// string temp(str, cipher_size);
 	// ocall_print(temp.c_str());
 
-	/* TODO: verify proof */
     // verify proof
 	if (verify(str)) {
 		return SGX_ERROR_UNEXPECTED;
 	}
-    // verify(decrypted);
+	ocall_print("verifying proof succeeded");
     // free(decrypted);
 
     return SGX_SUCCESS;
