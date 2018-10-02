@@ -188,7 +188,9 @@ sgx_status_t ecall_verify_proof(char *str, size_t cipher_size)
 
 	/* TODO: verify proof */
     // verify proof
-	verify(str);
+	if (verify(str)) {
+		return SGX_ERROR_UNEXPECTED;
+	}
     // verify(decrypted);
     // free(decrypted);
 

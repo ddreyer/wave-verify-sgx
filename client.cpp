@@ -471,7 +471,7 @@ int do_verify(sgx_enclave_id_t eid, config_t *config)
 		status= enclave_ra_init_def(eid, &sgxrv, b_pse, &ra_ctx,
 			&pse_status);
 	}
-
+	
 	/* Did the ECALL succeed? */
 	if ( status != SGX_SUCCESS ) {
 		fprintf(stderr, "enclave_ra_init: %08x\n", status);
