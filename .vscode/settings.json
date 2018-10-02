@@ -56,6 +56,11 @@
         "vector": "cpp",
         "cstdlib": "cpp",
         "chrono": "cpp",
-        "unordered_map": "cpp"
+        "unordered_map": "cpp",
+        "sstream": "cpp",
+        "asn_internal.h": "c",
+        "asn_application.h": "c",
+        "asn_codecs.h": "c",
+        "ctime": "cpp"
     }
 }

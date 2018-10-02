@@ -23,6 +23,7 @@ enclave {
 	include "sgx_trts.h"
 	include "sgx_utils.h"
 	include "sgx_tkey_exchange.h"
+	include "time.h"
 
 	from "sgx_tkey_exchange.edl" import *;
 
@@ -53,6 +54,18 @@ enclave {
 		include "config.h"
 #endif
 		void ocall_print([in, string]const char* str);
+
+		[cdecl,dllimport] time_t timegm_ocall([in,out]struct tm *tm);
+
+		[cdecl,dllimport] time_t mktime([in]struct tm *tm);
+
+		[cdecl]int gmtime_r_ocall([in]const time_t *tloc, [in]struct tm *result);
+
+		[cdecl]int localtime_r_ocall([in]const time_t *tloc, [in]struct tm *result);
+
+		[cdecl]long GMTOFF(struct tm a);
+
+		[cdecl]long random();
 	};
 };
 

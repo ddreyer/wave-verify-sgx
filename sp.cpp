@@ -369,42 +369,42 @@ int main(int argc, char *argv[])
 
 	/* Use the default CA bundle unless one is provided */
 
-	if ( config.ca_bundle == NULL ) {
-		config.ca_bundle= strdup(DEFAULT_CA_BUNDLE);
-		if ( config.ca_bundle == NULL ) {
-			perror("strdup");
-			return 1;
-		}
-		if ( debug ) eprintf("+++ Using default CA bundle %s\n",
-			config.ca_bundle);
-	}
+	// if ( config.ca_bundle == NULL ) {
+	// 	config.ca_bundle= strdup(DEFAULT_CA_BUNDLE);
+	// 	if ( config.ca_bundle == NULL ) {
+	// 		perror("strdup");
+	// 		return 1;
+	// 	}
+	// 	if ( debug ) eprintf("+++ Using default CA bundle %s\n",
+	// 		config.ca_bundle);
+	// }
 
-	/*
-	 * Use the hardcoded default key unless one is provided on the
-	 * command line. Most real-world services would hardcode the
-	 * key since the public half is also hardcoded into the enclave.
-	 * TODO: figure this out
-	 */
+	// /*
+	//  * Use the hardcoded default key unless one is provided on the
+	//  * command line. Most real-world services would hardcode the
+	//  * key since the public half is also hardcoded into the enclave.
+	//  * TODO: figure this out
+	//  */
 
-	if (config.service_private_key == NULL) {
-		if (debug) {
-			eprintf("Using default private key\n");
-		}
-		config.service_private_key = key_private_from_bytes(def_service_private_key);
-		if (config.service_private_key == NULL) {
-			crypto_perror("key_private_from_bytes");
-			return 1;
-		}
+	// if (config.service_private_key == NULL) {
+	// 	if (debug) {
+	// 		eprintf("Using default private key\n");
+	// 	}
+	// 	config.service_private_key = key_private_from_bytes(def_service_private_key);
+	// 	if (config.service_private_key == NULL) {
+	// 		crypto_perror("key_private_from_bytes");
+	// 		return 1;
+	// 	}
 
-	}
+	// }
 
-	if (debug) {
-		eprintf("+++ using private key:\n");
-		PEM_write_PrivateKey(stderr, config.service_private_key, NULL,
-			NULL, 0, 0, NULL);
-		PEM_write_PrivateKey(fplog, config.service_private_key, NULL,
-			NULL, 0, 0, NULL);
-	}
+	// if (debug) {
+	// 	eprintf("+++ using private key:\n");
+	// 	PEM_write_PrivateKey(stderr, config.service_private_key, NULL,
+	// 		NULL, 0, 0, NULL);
+	// 	PEM_write_PrivateKey(fplog, config.service_private_key, NULL,
+	// 		NULL, 0, 0, NULL);
+	// }
 
 	/* TODO: fix this */
 	// if (!flag_spid) {
@@ -545,8 +545,9 @@ int main(int argc, char *argv[])
 
 	/* for now, send the proof contents to the enclave */
 	/* TODO: how to establish initial connection and decide whether to do attestation */
-	send_proof(msgio);
-	return 0;
+	while (msgio->server_loop()) {
+		send_proof(msgio);
+	}
 
  	/* If we're running in server mode, we'll block here.  */
 
@@ -606,31 +607,32 @@ disconnect:
 }
 
 int send_proof(MsgIO *msgio) {
-	msgio->server_loop();
-	printf("Reading in proof PEM file...\n");
+	while (msgio->server_loop()) {
+		printf("Reading in proof PEM file...\n");
 
-    string proofFile("proof0.2.2.pem");
-    ifstream t(proofFile);
-    string pemStr((istreambuf_iterator<char>(t)),
-                             istreambuf_iterator<char>());
+		string proofFile("proof0.2.2.pem");
+		ifstream t(proofFile);
+		string pemStr((istreambuf_iterator<char>(t)),
+								istreambuf_iterator<char>());
 
-    /* extract proof content from .pem file */
-    pemStr.erase(0, pemStr.find("\n") + 1);
-    int idx = pemStr.find("-----END WAVE");
-    if (idx == string::npos) {
-        cerr << "invalid proof .pem file\n";
-        return -1;
-    }
-    pemStr.erase(idx, pemStr.find("\n", idx));
-    pemStr.erase(remove(pemStr.begin(), pemStr.end(), '\n'), pemStr.end());
-	
-	/* TODO: encrypt the proof */
+		/* extract proof content from .pem file */
+		pemStr.erase(0, pemStr.find("\n") + 1);
+		int idx = pemStr.find("-----END WAVE");
+		if (idx == string::npos) {
+			cerr << "invalid proof .pem file\n";
+			return -1;
+		}
+		pemStr.erase(idx, pemStr.find("\n", idx));
+		pemStr.erase(remove(pemStr.begin(), pemStr.end(), '\n'), pemStr.end());
+		
+		/* TODO: encrypt the proof */
 
-	/* send proof info to enclave */
-	size_t sz = pemStr.size();
-	msgio->send_partial(&sz, sizeof(size_t));
-	msgio->send((void *) pemStr.c_str(), sz);
-	printf("Sent proof info to enclave...\n");
+		/* send proof info to enclave */
+		size_t sz = pemStr.size();
+		msgio->send_partial(&sz, sizeof(size_t));
+		msgio->send((void *) pemStr.c_str(), sz);
+		printf("Sent proof info to enclave...\n");
+	}
 	return 0;
 }
 

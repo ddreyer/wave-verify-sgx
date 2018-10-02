@@ -183,11 +183,12 @@ sgx_status_t ecall_verify_proof(char *str, size_t cipher_size)
     // }
     // ocall_print("Enclave: Decrypted proof contents in the enclave:\n");
     // ocall_print(decrypted);
-	ocall_print((const char *)str);
+	// string temp(str, cipher_size);
+	// ocall_print(temp.c_str());
 
 	/* TODO: verify proof */
     // verify proof
-	// verify(str);
+	verify(str);
     // verify(decrypted);
     // free(decrypted);
 

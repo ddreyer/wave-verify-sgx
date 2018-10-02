@@ -1263,3 +1263,78 @@ void usage ()
 void ocall_print(const char* str) {
     printf("%s\n", str);
 }
+
+#define	ATZVARS do {							\
+	char tzoldbuf[64];						\
+	char *tzold
+#define	ATZSAVETZ do {							\
+	tzold = getenv("TZ");						\
+	if(tzold) {							\
+		size_t tzlen = strlen(tzold);				\
+		if(tzlen < sizeof(tzoldbuf)) {				\
+			tzold = (char *) memcpy(tzoldbuf, tzold, tzlen + 1);	\
+		} else {						\
+			char *dupptr = tzold;				\
+			tzold = (char *) malloc(tzlen + 1);			\
+			if(tzold) memcpy(tzold, dupptr, tzlen + 1);	\
+		}							\
+		setenv("TZ", "UTC", 1);					\
+	}								\
+	tzset();							\
+} while(0)
+#define	ATZOLDTZ do {							\
+	if (tzold) {							\
+		setenv("TZ", tzold, 1);					\
+		*tzoldbuf = 0;						\
+		if(tzold != tzoldbuf)					\
+			free(tzold);					\
+	} else {							\
+		unsetenv("TZ");						\
+	}								\
+	tzset();							\
+} while(0); } while(0);
+
+time_t timegm_ocall(struct tm *tm) {
+	time_t tloc;
+	ATZVARS;
+	ATZSAVETZ;
+	tloc = mktime(tm);
+	ATZOLDTZ;
+	return tloc;
+}
+
+time_t mktime(struct tm *tm) {
+	return mktime(tm);
+}
+
+int gmtime_r_ocall(const time_t *tloc, struct tm *result) {
+	struct tm *tm;
+	if((tm = gmtime(tloc)))
+		memcpy(result, tm, sizeof(struct tm));
+	return 0;
+}
+
+int localtime_r_ocall(const time_t *tloc, struct tm *result) {
+	struct tm *tm;
+	if((tm = localtime(tloc)))
+		memcpy(result, tm, sizeof(struct tm));
+	return 0;
+}
+
+long GMTOFF(struct tm a){
+	struct tm *lt;
+	time_t local_time, gmt_time;
+	long zone;
+
+	tzset();
+	gmt_time = time (NULL);
+
+	lt = gmtime(&gmt_time);
+
+	local_time = mktime(lt);
+	return (gmt_time - local_time);
+}
+
+long random() {
+	return random();
+}

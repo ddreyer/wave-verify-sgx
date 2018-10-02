@@ -62,7 +62,9 @@ ENCLAVE_KEY=$(ENCLAVE)_private.pem
 ## AM_CPPFLAGS += 
 ## AM_CXXFLAGS +=
 
-AM_CPPFLAGS += -I.. -I$(SGX_SDK)/include/libcxx -Iwave-verify -Iwave-verify/asn1c_files -DASN_PDU_COLLECTION
+AM_CXXFLAGS += -I. -I.. -I$(SGX_SDK)/include/libcxx -Iwave-verify -Iwave-verify/asn1c_files
+AM_CFLAGS += -I. -I.. -I$(SGX_SDK)/include/libcxx -Iwave-verify -Iwave-verify/asn1c_files
+# AM_CPPFLAGS += -I$(SGX_SDK)/include/libcxx
 
 ## Additional files to remove with 'make clean'. This list needs
 ## to include your edger8r genreated files.
@@ -75,9 +77,9 @@ CLEANFILES+= $(ENCLAVE)_t.c $(ENCLAVE)_t.h
 ## target name (i.e., $(ENCLAVE)_SOURCES will not work).
 AUTOMAKE_OPTIONS = subdir-objects
 
-# AES_SRCS=wave-verify/aes-gcm/aes.c wave-verify/aes-gcm/cipher.c wave-verify/aes-gcm/cipher_wrap.c wave-verify/aes-gcm/gcm.c wave-verify/aes-gcm/utils.c
+AES_SRCS=wave-verify/aes-gcm/aes.c wave-verify/aes-gcm/cipher.c wave-verify/aes-gcm/cipher_wrap.c wave-verify/aes-gcm/gcm.c wave-verify/aes-gcm/utils.c
 
-# ED_SRCS=wave-verify/ed25519/src/add_scalar.c wave-verify/ed25519/src/
+# ED_SRCS=wave-verify/ed25519/src/add_scalar.c wave-verify/ed25519/src/fe.c wave-verify/ed25519/src/ge.c wave-verify/ed25519/src/key_exchange.c wave-verify/ed25519/src/keypair.c wave-verify/ed25519/src/sc.c wave-verify/ed25519/src/seed.c wave-verify/ed25519/src/sha512.c wave-verify/ed25519/src/sign.c wave-verify/ed25519/src/verify.c
 
 HASH_SRCS=wave-verify/hash-library/keccak.cpp
 
@@ -85,7 +87,7 @@ ASN_PROGRAM_SRCS = wave-verify/utils.cpp\
 	wave-verify/asn.cpp\
 	wave-verify/verify.cpp
 
-Enclave_SOURCES = $(HASH_SRCS) $(AES_SRCS) $(ASN_MODULE_SRCS) $(ASN_PROGRAM_SRCS) Enclave_t.c Enclave_t.h Enclave.cpp \
+Enclave_SOURCES = $(HASH_SRCS) $(AES_SRCS) $(ED_SRCS) $(ASN_MODULE_SRCS) $(ASN_PROGRAM_SRCS) Enclave_t.c Enclave_t.h Enclave.cpp \
 	$(ENCLAVE_KEY) $(ENCLAVE_CONFIG)
 
 
