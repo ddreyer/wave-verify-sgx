@@ -52,5 +52,8 @@ typedef struct _ra_msgproof_struct {
 	char proof_contents[];
 } ra_msgproof_t;
 
-#endif
+typedef struct _ra_msgkey_struct {
+	sgx_ec256_public_t pubkey;
+} ra_msgkey_t;
 
+#endif

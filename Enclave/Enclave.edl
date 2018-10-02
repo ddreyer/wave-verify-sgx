@@ -27,16 +27,13 @@ enclave {
 
 	from "sgx_tkey_exchange.edl" import *;
 	from "sgx_tsgxssl.edl" import *;
-	
+
 	trusted {
 #ifndef _WIN32
 		include "config.h"
 #endif
 
 		public sgx_status_t enclave_ra_init(sgx_ec256_public_t key, int b_pse,
-			[out] sgx_ra_context_t *ctx, [out] sgx_status_t *pse_status);
-
-		public sgx_status_t enclave_ra_init_def(int b_pse,
 			[out] sgx_ra_context_t *ctx, [out] sgx_status_t *pse_status);
 
 		public sgx_status_t ecall_verify_proof([in,size=cipher_size] char *str,

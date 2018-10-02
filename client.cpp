@@ -182,8 +182,6 @@ int main (int argc, char *argv[])
 		{"spid",		required_argument,	0, 's'},
 		{"spid-file",	required_argument,	0, 'S'},
 		{"linkable",	no_argument,		0, 'l'},
-		{"pubkey",		optional_argument,	0, 'p'},
-		{"pubkey-file",	required_argument,	0, 'P'},
 		{"quote",		no_argument,		0, 'q'},
 		{"verbose",		no_argument,		0, 'v'},
 		{"stdio",		no_argument,		0, 'z'},
@@ -212,21 +210,6 @@ int main (int argc, char *argv[])
 				exit(1);
 			}
 			SET_OPT(config.flags, OPT_NONCE);
-
-			break;
-		case 'P':
-			if ( ! key_load_file(&service_public_key, optarg, KEY_PUBLIC) ) {
-				fprintf(stderr, "%s: ", optarg);
-				crypto_perror("load_key_from_file");
-				exit(1);
-			} 
-
-			if ( ! key_to_sgx_ec256(&config.pubkey, service_public_key) ) {
-				fprintf(stderr, "%s: ", optarg);
-				crypto_perror("key_to_sgx_ec256");
-				exit(1);
-			}
-			SET_OPT(config.flags, OPT_PUBKEY);
 
 			break;
 		case 'S':
@@ -264,21 +247,6 @@ int main (int argc, char *argv[])
 			}
 
 			SET_OPT(config.flags, OPT_NONCE);
-
-			break;
-		case 'p':
-			if ( ! from_hexstring((unsigned char *) keyin,
-					(unsigned char *) optarg, 64)) {
-
-				fprintf(stderr, "key must be 128-byte hex string\n");
-				exit(1);
-			}
-
-			/* Reverse the byte stream to make a little endien style value */
-			for(i= 0; i< 32; ++i) config.pubkey.gx[i]= keyin[31-i];
-			for(i= 0; i< 32; ++i) config.pubkey.gy[i]= keyin[63-i];
-
-			SET_OPT(config.flags, OPT_PUBKEY);
 
 			break;
 		case 'q':
@@ -430,6 +398,7 @@ int do_verify(sgx_enclave_id_t eid, config_t *config)
 {
 	sgx_status_t status, sgxrv, pse_status;
 	ra_msgproof_t *proof_info;
+	ra_msgkey_t *client_key;
 	uint32_t msg0_extended_epid_group_id = 0;
 	uint32_t flags= config->flags;
 	sgx_ra_context_t ra_ctx= 0xdeadbeef;
@@ -451,27 +420,13 @@ int do_verify(sgx_enclave_id_t eid, config_t *config)
 		}
 	}
 
-	/*
-	 * WARNING! Normally, the public key would be hardcoded into the
-	 * enclave, not passed in as a parameter. Hardcoding prevents
-	 * the enclave using an unauthorized key.
-	 *
-	 * This is diagnostic/test application, however, so we have
-	 * the flexibility of a dynamically assigned key.
-	 */
-
 	/* Executes an ECALL that runs sgx_ra_init() */
+	/* use supplied public key from client */
+	rv = msgio->read((void **) &client_key, NULL);
+	if ( debug ) 
+		fprintf(stderr, "+++ using supplied public key\n");
+	status = enclave_ra_init(eid, &sgxrv, client_key->pubkey, b_pse, &ra_ctx, &pse_status);
 
-	if ( OPT_ISSET(flags, OPT_PUBKEY) ) {
-		if ( debug ) fprintf(stderr, "+++ using supplied public key\n");
-		status= enclave_ra_init(eid, &sgxrv, config->pubkey, b_pse,
-			&ra_ctx, &pse_status);
-	} else {
-		if ( debug ) fprintf(stderr, "+++ using default public key\n");
-		status= enclave_ra_init_def(eid, &sgxrv, b_pse, &ra_ctx,
-			&pse_status);
-	}
-	
 	/* Did the ECALL succeed? */
 	if ( status != SGX_SUCCESS ) {
 		fprintf(stderr, "enclave_ra_init: %08x\n", status);
@@ -525,6 +480,7 @@ int do_attestation (sgx_enclave_id_t eid, config_t *config)
 	sgx_ra_msg2_t *msg2 = NULL;
 	sgx_ra_msg3_t *msg3 = NULL;
 	ra_msg4_t *msg4 = NULL;
+	ra_msgkey_t *client_key;
 	uint32_t msg0_extended_epid_group_id = 0;
 	uint32_t msg3_sz;
 	uint32_t flags= config->flags;
@@ -547,27 +503,12 @@ int do_attestation (sgx_enclave_id_t eid, config_t *config)
 		}
 	}
 
-	/*
-	 * WARNING! Normally, the public key would be hardcoded into the
-	 * enclave, not passed in as a parameter. Hardcoding prevents
-	 * the enclave using an unauthorized key.
-	 *
-	 * This is diagnostic/test application, however, so we have
-	 * the flexibility of a dynamically assigned key.
-	 * TODO: figure this out
-	 */
-
 	/* Executes an ECALL that runs sgx_ra_init() */
-
-	if ( OPT_ISSET(flags, OPT_PUBKEY) ) {
-		if ( debug ) fprintf(stderr, "+++ using supplied public key\n");
-		status= enclave_ra_init(eid, &sgxrv, config->pubkey, b_pse,
-			&ra_ctx, &pse_status);
-	} else {
-		if ( debug ) fprintf(stderr, "+++ using default public key\n");
-		status= enclave_ra_init_def(eid, &sgxrv, b_pse, &ra_ctx,
-			&pse_status);
-	}
+	/* use supplied public key from client */
+	rv = msgio->read((void **) &client_key, NULL);
+	if ( debug ) 
+		fprintf(stderr, "+++ using supplied public key\n");
+	status = enclave_ra_init(eid, &sgxrv, client_key->pubkey, b_pse, &ra_ctx, &pse_status);
 
 	/* Did the ECALL succeed? */
 	if ( status != SGX_SUCCESS ) {
