@@ -24,10 +24,14 @@ in the License.
 #include <sgx_tae_service.h>
 #include <sgx_tkey_exchange.h>
 #include <sgx_tcrypto.h>
+#include "sgx_tseal.h"
 
 #include <verify.h>
 
 #define PSE_RETRIES	5	/* Arbitrary. Not too long, not too short. */
+
+/* data for enclave's asymmetric key */
+uint8_t *sealed_key;
 
 /*----------------------------------------------------------------------
  * WARNING
@@ -132,44 +136,74 @@ sgx_status_t enclave_ra_init(sgx_ec256_public_t key, int b_pse,
 	return ra_status;
 }
 
+sgx_status_t ecall_create_keys() {
+	BIGNUM *bn = BN_new();
+	if (bn == NULL) {
+		return SGX_ERROR_UNEXPECTED;
+	}
+	int ret = BN_set_word(bn, RSA_F4);
+	if (!ret) {
+		return SGX_ERROR_UNEXPECTED;
+	}
+
+	RSA *keypair = RSA_new();
+	if (keypair == NULL) {
+		return SGX_ERROR_UNEXPECTED;
+	}
+	ret = RSA_generate_key_ex(keypair, 4096, bn, NULL);
+	if (!ret) {
+		return SGX_ERROR_UNEXPECTED;
+	}
+
+	// EVP_PKEY *evp_pkey = EVP_PKEY_new();
+	// if (evp_pkey == NULL) {
+	// 	return SGX_ERROR_UNEXPECTED;
+	// }
+	// EVP_PKEY_assign_RSA(evp_pkey, keypair);
+	
+	// size_t sealed_size = sizeof(sgx_sealed_data_t) + sizeof(evp_pkey_st);
+    // sealed_key = (uint8_t *) malloc(sealed_size);
+    // sgx_status_t status = sgx_seal_data(0, NULL, sizeof(evp_pkey_st), 
+    //     (uint8_t *) evp_pkey, sealed_size, (sgx_sealed_data_t *) sealed_key);
+
+	BN_free(bn);
+	// EVP_PKEY_free(evp_pkey);
+	RSA_free(keypair);
+
+    // return status;
+}
+
 /* Enclave message verification */
-sgx_status_t ecall_verify_proof(char *str, size_t cipher_size) 
+sgx_status_t ecall_verify_proof(char *cipher, size_t cipher_size, sgx_ra_context_t ctx) 
 {
     ocall_print("Enclave: Inside enclave to verify the proof");
 
-	/* TODO: decrypt proof */
-    // struct private_key_class priv[1];
-    // // unseal private key for use decrypting
-    // uint32_t plaintext_size = sizeof(struct private_key_class);
-    // sgx_status_t status = sgx_unseal_data((sgx_sealed_data_t *) sealed_data, NULL, NULL, 
-    //     (uint8_t*) &priv, &plaintext_size);
-
-    // if (status != SGX_SUCCESS)
-    // {
-    //     return status;
-    // }
-  
-    // ocall_print("Enclave: Unsealing key success");
-    // long long *cipher = (long long *) str;
-
-    // // decrypt proof contents
-    // char *decrypted = rsa_decrypt(cipher, cipher_size, priv);
-    // if (!decrypted)
-    // {
-    //     return SGX_ERROR_UNEXPECTED;
-    // }
-    // ocall_print("Enclave: Decrypted proof contents in the enclave:\n");
-    // ocall_print(decrypted);
-	// string temp(str, cipher_size);
-	// ocall_print(temp.c_str());
+	/* First, get symmetric key to decrypt */
+	/* TODO: And verification key? check signature? */
+	sgx_ra_key_128_t k;
+	sgx_status_t status = sgx_ra_get_keys(ctx, SGX_RA_KEY_SK, &k);
+	EVP_CIPHER_CTX *kctx;
+	int outlen, ret;
+	unsigned char decrypted[cipher_size];
+	kctx = EVP_CIPHER_CTX_new();
+	/* Select cipher */
+	EVP_DecryptInit_ex(kctx, EVP_aes_128_gcm(), NULL, NULL, NULL);
+	/* Specify key and IV */
+	EVP_DecryptInit_ex(kctx, NULL, NULL, (const unsigned char *) &k, (const unsigned char *) nonce);
+	/* Decrypt plaintext */
+	ret = EVP_DecryptUpdate(kctx, decrypted, &outlen, (const unsigned char *) cipher, cipher_size);
+	EVP_CIPHER_CTX_free(kctx);
+	if (!ret) {
+		ocall_print("proof decryption failed");
+		return SGX_ERROR_UNEXPECTED;
+	}
+	ocall_print("proof decryption succeeded");
 
     // verify proof
-	if (verify(str)) {
+	if (verify(decrypted)) {
 		return SGX_ERROR_UNEXPECTED;
 	}
 	ocall_print("verifying proof succeeded");
-    // free(decrypted);
-
     return SGX_SUCCESS;
 }
 
