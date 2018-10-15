@@ -108,7 +108,8 @@ sgx_status_t ecall_verify_proof(char *cipher, size_t cipher_size, sgx_ra_context
 {
     ocall_print("Enclave: Inside enclave to verify the proof");
 	/* First, get symmetric key to decrypt */
-	/* TODO: sign message? Fix hardcoded key*/
+	/* TODO: sign message? */
+	/* TODO: use correct key */
 	// sgx_ra_key_128_t k;
 	// sgx_status_t status = sgx_ra_get_keys(ctx, SGX_RA_KEY_SK, &k);
 	sgx_ra_key_128_t *k = (sgx_ra_key_128_t *)"0123456789012345";
@@ -117,16 +118,23 @@ sgx_status_t ecall_verify_proof(char *cipher, size_t cipher_size, sgx_ra_context
 	EVP_CIPHER_CTX *kctx;
 	int outlen, ret;
 	unsigned char decrypted[cipher_size];
-	kctx = EVP_CIPHER_CTX_new();
-	/* Select cipher */
-	EVP_DecryptInit_ex(kctx, EVP_aes_128_gcm(), NULL, (const unsigned char *) k, iv);
-	/* Decrypt ciphertext */
-	ret = EVP_DecryptUpdate(kctx, decrypted, &outlen, (const unsigned char *) cipher, cipher_size);
-	EVP_CIPHER_CTX_free(kctx);
-	if (!ret) {
-		ocall_print("proof decryption failed");
+	if (!(kctx = EVP_CIPHER_CTX_new())) {
+		ocall_print("error initializing crypto");
 		return SGX_ERROR_UNEXPECTED;
 	}
+	/* Select cipher */
+	if (1 != EVP_DecryptInit_ex(kctx, EVP_aes_128_gcm(), NULL, 
+		(const unsigned char *) k, iv)) {
+		ocall_print("error initializing decryption");
+		return SGX_ERROR_UNEXPECTED;
+	}
+	/* Decrypt ciphertext */
+	if (1 != EVP_DecryptUpdate(kctx, decrypted, &outlen, 
+		(const unsigned char *) cipher, cipher_size)) {
+		ocall_print("error decrypting proof");
+		return SGX_ERROR_UNEXPECTED;
+	}
+	EVP_CIPHER_CTX_free(kctx);
 	ocall_print("proof decryption succeeded");
 
 	/* verify proof */

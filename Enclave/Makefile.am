@@ -76,7 +76,9 @@ CLEANFILES+= $(ENCLAVE)_t.c $(ENCLAVE)_t.h
 ## target name (i.e., $(ENCLAVE)_SOURCES will not work).
 AUTOMAKE_OPTIONS = subdir-objects
 
-# ED_SRCS=wave-verify/ed25519/src/add_scalar.c wave-verify/ed25519/src/fe.c wave-verify/ed25519/src/ge.c wave-verify/ed25519/src/key_exchange.c wave-verify/ed25519/src/keypair.c wave-verify/ed25519/src/sc.c wave-verify/ed25519/src/seed.c wave-verify/ed25519/src/sha512.c wave-verify/ed25519/src/sign.c wave-verify/ed25519/src/verify.c
+ED_SRCS=wave-verify/ed25519/src/add_scalar.c wave-verify/ed25519/src/fe.c wave-verify/ed25519/src/ge.c \
+wave-verify/ed25519/src/key_exchange.c wave-verify/ed25519/src/keypair.c wave-verify/ed25519/src/sc.c \
+wave-verify/ed25519/src/sha512.c wave-verify/ed25519/src/sign.c wave-verify/ed25519/src/verify.c
 
 HASH_SRCS=wave-verify/hash-library/keccak.cpp
 
@@ -84,7 +86,7 @@ ASN_PROGRAM_SRCS = wave-verify/utils.cpp\
 	wave-verify/asn.cpp\
 	wave-verify/verify.cpp
 
-Enclave_SOURCES = $(HASH_SRCS) $(ASN_MODULE_SRCS) $(ASN_PROGRAM_SRCS) Enclave_t.c Enclave_t.h Enclave.cpp \
+Enclave_SOURCES = $(HASH_SRCS) $(ED_SRCS) $(ASN_MODULE_SRCS) $(ASN_PROGRAM_SRCS) Enclave_t.c Enclave_t.h Enclave.cpp \
 	$(ENCLAVE_KEY) $(ENCLAVE_CONFIG)
 
 
@@ -125,4 +127,3 @@ SGX_EXTRA_TLIBS=-lsgx_tkey_exchange -lsgx_tcxx -lsgx_tsgxssl -lsgx_tsgxssl_crypt
 ##
 ## enclave_LDFLAGS = @SGX_ENCLAVE_LDFLAGS@
 ##
-
