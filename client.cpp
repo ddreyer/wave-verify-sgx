@@ -80,11 +80,7 @@ using namespace std;
 #endif
 
 typedef struct config_struct {
-	char mode;
 	uint32_t flags;
-	sgx_spid_t spid;
-	sgx_ec256_public_t pubkey;
-	sgx_quote_nonce_t nonce;
 	char *server;
 	char *port;
 } config_t;
@@ -103,20 +99,12 @@ sgx_status_t sgx_create_enclave_search (
 
 void usage();
 int do_verify(sgx_enclave_id_t eid, config_t *config);
-// int do_quote(sgx_enclave_id_t eid, config_t *config);
 int do_attestation(sgx_enclave_id_t eid, config_t *config);
 
 char debug= 0;
 char verbose= 0;
 
-#define MODE_ATTEST 0x0
-#define MODE_EPID 	0x1
-#define MODE_QUOTE	0x2
-
 #define OPT_PSE		0x01
-#define OPT_NONCE	0x02
-#define OPT_LINK	0x04
-#define OPT_PUBKEY	0x08
 
 /* Macros to set, clear, and get the mode and options */
 
@@ -139,9 +127,7 @@ int main (int argc, char *argv[])
 	int updated= 0;
 	int sgx_support;
 	uint32_t i;
-	EVP_PKEY *service_public_key= NULL;
 	char have_spid= 0;
-	char flag_stdio= 0;
 
 	/* Create a logfile to capture debug output and actual msg data */
 	fplog = create_logfile("client.log");
@@ -167,18 +153,11 @@ int main (int argc, char *argv[])
 
 
 	memset(&config, 0, sizeof(config));
-	config.mode= MODE_ATTEST;
 
 	static struct option long_opt[] =
 	{
 		{"help",		no_argument,		0, 'h'},		
 		{"debug",		no_argument,		0, 'd'},
-		{"epid-gid",	no_argument,		0, 'e'},
-		{"nonce",		required_argument,	0, 'n'},
-		{"nonce-file",	required_argument,	0, 'N'},
-		{"rand-nonce",	no_argument,		0, 'r'},
-		{"spid",		required_argument,	0, 's'},
-		{"spid-file",	required_argument,	0, 'S'},
 		{"verbose",		no_argument,		0, 'v'},
 		{"stdio",		no_argument,		0, 'z'},
 		{ 0, 0, 0, 0 }
@@ -198,82 +177,14 @@ int main (int argc, char *argv[])
 		switch(c) {
 		case 0:
 			break;
-		case 'N':
-			if ( ! from_hexstring_file((unsigned char *) &config.nonce,
-					optarg, 16)) {
-
-				fprintf(stderr, "nonce must be 32-byte hex string\n");
-				exit(1);
-			}
-			SET_OPT(config.flags, OPT_NONCE);
-
-			break;
-		case 'S':
-			if ( ! from_hexstring_file((unsigned char *) &config.spid,
-					optarg, 16)) {
-
-				fprintf(stderr, "SPID must be 32-byte hex string\n");
-				exit(1);
-			}
-			++have_spid;
-
-			break;
 		case 'd':
 			debug= 1;
-			break;
-		case 'e':
-			config.mode= MODE_EPID;
 			break;
 		case 'm':
 			SET_OPT(config.flags, OPT_PSE);
 			break;
-		case 'n':
-			if ( strlen(optarg) < 32 ) {
-				fprintf(stderr, "nonce must be 32-byte hex string\n");
-				exit(1);
-			}
-			if ( ! from_hexstring((unsigned char *) &config.nonce,
-					(unsigned char *) optarg, 16) ) {
-
-				fprintf(stderr, "nonce must be 32-byte hex string\n");
-				exit(1);
-			}
-
-			SET_OPT(config.flags, OPT_NONCE);
-
-			break;
-		case 'r':
-			for(i= 0; i< 2; ++i) {
-				int retry= 10;
-				unsigned char ok= 0;
-				uint64_t *np= (uint64_t *) &config.nonce;
-
-				while ( !ok && retry ) ok= _rdrand64_step(&np[i]);
-				if ( ok == 0 ) {
-					fprintf(stderr, "nonce: RDRAND underflow\n");
-					exit(1);
-				}
-			}
-			SET_OPT(config.flags, OPT_NONCE);
-			break;
-		case 's':
-			if ( strlen(optarg) < 32 ) {
-				fprintf(stderr, "SPID must be 32-byte hex string\n");
-				exit(1);
-			}
-			if ( ! from_hexstring((unsigned char *) &config.spid,
-					(unsigned char *) optarg, 16) ) {
-
-				fprintf(stderr, "SPID must be 32-byte hex string\n");
-				exit(1);
-			}
-			++have_spid;
-			break;
 		case 'v':
 			verbose= 1;
-			break;
-		case 'z':
-			flag_stdio= 1;
 			break;
 		case 'h':
 		case '?':
@@ -287,15 +198,10 @@ int main (int argc, char *argv[])
 
 	/* Remaining argument is host[:port] */
 
-	if ( flag_stdio && argc ) usage();
-	else if ( !flag_stdio && ! argc ) {
-		// Default to localhost
-		config.server= strdup("localhost");
-		if ( config.server == NULL ) {
-			perror("malloc");
+	if ( !argc ) {
+		fprintf(stderr, "Need to specify host:port\n");
 			return 1;
-		}
-	} else if ( argc ) {
+	} else {
 		char *cp;
 
 		config.server= strdup(argv[optind]);
@@ -310,11 +216,6 @@ int main (int argc, char *argv[])
 			*cp++= '\0';
 			config.port= cp;
 		}
-	}
-
-	if ( ! have_spid && config.mode != MODE_EPID ) {
-		fprintf(stderr, "SPID required. Use one of --spid or --spid-file \n");
-		return 1;
 	}
 
 	/* Can we run SGX? */
@@ -366,20 +267,9 @@ int main (int argc, char *argv[])
 	/* for now, just do proof verification with no attestation */
 	/* TODO: how to establish initial connection */
 	do_verify(eid, &config);
+	// do_attestation(eid, &config);
 	return 0;
 
-	/* Are we attesting, or just spitting out a quote? */
-
-	// if ( config.mode == MODE_ATTEST ) {
-	// 	do_attestation(eid, &config);
-	// } else if ( config.mode == MODE_EPID || config.mode == MODE_QUOTE ) {
-	// 	do_quote(eid, &config);
-	// } else {
-	// 	fprintf(stderr, "Unknown operation mode.\n");
-	// 	return 1;
-	// }
-
-     
 	close_logfile(fplog);
 }
 
@@ -410,45 +300,16 @@ int do_verify(sgx_enclave_id_t eid, config_t *config)
 		}
 	}
 
-	/* Executes an ECALL that runs sgx_ra_init() */
-	/* read supplied encrypted public key from client */
-	// rv = msgio->read((void **) &encrypted_client_key, NULL);
-	rv = msgio->read((void **) &client_key, NULL);
-	if ( debug ) 
-		fprintf(stderr, "+++ using supplied public key\n");
-	/* TODO: change this to take in encrypted public key, decrypt, and init enclave */
-	status = enclave_ra_init(eid, &sgxrv, client_key->pubkey, b_pse, &ra_ctx, &pse_status);
-
-	/* Did the ECALL succeed? */
-	if ( status != SGX_SUCCESS ) {
-		fprintf(stderr, "enclave_ra_init: %08x\n", status);
-		return 1;
-	}
-
-	/* If we asked for a PSE session, did that succeed? */
-	if (b_pse) {
-		if ( pse_status != SGX_SUCCESS ) {
-			fprintf(stderr, "pse_session: %08x\n", sgxrv);
-			return 1;
-		}
-	}
-
-	/* Did sgx_ra_init() succeed? */
-	if ( sgxrv != SGX_SUCCESS ) {
-		fprintf(stderr, "sgx_ra_init: %08x\n", sgxrv);
-		return 1;
-	}
-
-	/* read proof info */
+	/* read encrypted proof contents */
 	rv= msgio->read((void **) &proof_info, NULL);
 	printf("Enclave app: Retrieved proof from client\n");
 
 	if ( rv == 0 ) {
-                enclave_ra_close(eid, &sgxrv, ra_ctx);
+        enclave_ra_close(eid, &sgxrv, ra_ctx);
 		fprintf(stderr, "protocol error reading proof from client\n");
 		exit(1);
 	} else if ( rv == -1 ) {
-                enclave_ra_close(eid, &sgxrv, ra_ctx);
+        enclave_ra_close(eid, &sgxrv, ra_ctx);
 		fprintf(stderr, "system error occurred while reading proof from client\n");
 		exit(1);
 	}
@@ -496,7 +357,9 @@ int do_attestation (sgx_enclave_id_t eid, config_t *config)
 	}
 
 	/* Executes an ECALL that runs sgx_ra_init() */
-	/* use supplied public key from client */
+	/* use supplied encrypted public key from client */
+	/* TODO: change this to take in encrypted public key */
+	// rv = msgio->read((void **) &encrypted_client_key, NULL);
 	rv = msgio->read((void **) &client_key, NULL);
 	if ( debug ) 
 		fprintf(stderr, "+++ using supplied public key\n");
@@ -962,22 +825,13 @@ int file_in_searchpath (const char *file, const char *search, char *fullpath,
 
 #endif
 
-
 void usage () 
 {
 	fprintf(stderr, "usage: client [ options ] [ host[:port] ]\n\n");
 	fprintf(stderr, "Required:\n");
-	fprintf(stderr, "  -N, --nonce-file=FILE    Set a nonce from a file containing a 32-byte\n");
-	fprintf(stderr, "                             ASCII hex string\n");
-	fprintf(stderr, "  -S, --spid-file=FILE     Set the SPID from a file containing a 32-byte\n");
-	fprintf(stderr, "                             ASCII hex string\n");
 	fprintf(stderr, "  -d, --debug              Show debugging information\n");
-	fprintf(stderr, "  -n, --nonce=HEXSTRING    Set a nonce from a 32-byte ASCII hex string\n");
-	fprintf(stderr, "  -r                       Generate a nonce using RDRAND\n");
-	fprintf(stderr, "  -s, --spid=HEXSTRING     Set the SPID from a 32-byte ASCII hex string\n");
+	fprintf(stderr, "  -m, --pse-manifest       Include the PSE manifest in the quote\n");
 	fprintf(stderr, "  -v, --verbose            Print decoded RA messages to stderr\n");
-	fprintf(stderr, "  -z                       Read from stdin and write to stdout instead\n");
-	fprintf(stderr, "                             connecting to a server.\n");
 	fprintf(stderr, "\nOne of --spid OR --spid-file is required for generating a quote or doing\nremote attestation.\n");
 	exit(1);
 }

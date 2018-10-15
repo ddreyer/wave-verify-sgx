@@ -555,7 +555,6 @@ int main(int argc, char *argv[])
 	/* for now, send the proof contents to the enclave */
 	/* TODO: how to establish initial connection and decide whether to do attestation */
 	while (msgio->server_loop()) {
-		send_pubkey(msgio);
 		send_proof(msgio);
 	}
 #ifndef _WIN32
@@ -582,10 +581,13 @@ int main(int argc, char *argv[])
 		sgx_ra_msg1_t msg1;
 		sgx_ra_msg2_t msg2;
 		ra_msg4_t msg4;
+		
+		/* Send encrypted public key to enclave to initialize remote attestation */
+		send_pubkey(msgio);
 
 		memset(&session, 0, sizeof(ra_session_t));
 
-		/* Read message 0 and 1, then generate message 2 */
+		/* Wait for and then read message 0 and 1, then generate message 2 */
 
 		if ( ! process_msg01(msgio, ias, &msg1, &msg2, &sigrl, &config,
 			&session) ) {
@@ -633,35 +635,69 @@ disconnect:
 }
 
 int send_proof(MsgIO *msgio) {
-		printf("Reading in proof PEM file...\n");
+	printf("Reading in proof PEM file...\n");
 
-		string proofFile("proof0.2.2.pem");
-		ifstream t(proofFile);
-		string pemStr((istreambuf_iterator<char>(t)),
-								istreambuf_iterator<char>());
+	string proofFile("proof0.2.2.pem");
+	ifstream t(proofFile);
+	string pemStr((istreambuf_iterator<char>(t)),
+							istreambuf_iterator<char>());
 
-		/* extract proof content from .pem file */
-		pemStr.erase(0, pemStr.find("\n") + 1);
-		int idx = pemStr.find("-----END WAVE");
-		if (idx == string::npos) {
-			cerr << "invalid proof .pem file\n";
-			return -1;
-		}
-		pemStr.erase(idx, pemStr.find("\n", idx));
-		pemStr.erase(remove(pemStr.begin(), pemStr.end(), '\n'), pemStr.end());
-		
-		/* TODO: encrypt the proof */
+	/* extract proof content from .pem file */
+	pemStr.erase(0, pemStr.find("\n") + 1);
+	int idx = pemStr.find("-----END WAVE");
+	if (idx == string::npos) {
+		cerr << "invalid proof .pem file\n";
+		return -1;
+	}
+	pemStr.erase(idx, pemStr.find("\n", idx));
+	pemStr.erase(remove(pemStr.begin(), pemStr.end(), '\n'), pemStr.end());
+	
+	/* TODO: use an actual key and figure out which key to encrypt with */
+	sgx_ra_key_128_t *k = (sgx_ra_key_128_t *)"0123456789012345";
+	/* A 128 bit IV */
+	/* TODO: create an IV */
+	unsigned char *iv = (unsigned char *)"0123456789012345";
 
-		/* send proof info to enclave */
-		size_t sz = pemStr.size();
-		msgio->send_partial(&sz, sizeof(size_t));
-		msgio->send((void *) pemStr.c_str(), sz);
-		printf("Sent proof info to enclave...\n");
+	/* Buffer for ciphertext. Ensure the buffer is long enough for the
+	* ciphertext which may be longer than the plaintext, dependant on the
+	* algorithm and mode
+	*/
+	unsigned char ciphertext[pemStr.size()];
+	int ciphertext_len;
+	EVP_CIPHER_CTX *ctx;
+
+	/* Create and initialise the context */
+	if (!(ctx = EVP_CIPHER_CTX_new())) {
+		eprintf("error initializing crypto\n");
+		return 1;
+	}
+
+	if (1 != EVP_EncryptInit_ex(ctx, EVP_aes_128_gcm(), NULL, (const unsigned char *) k, (const unsigned char *) iv)) {
+		eprintf("error initializing crypto\n");
+		return 1;
+	}
+
+	/* Provide the message to be encrypted, and obtain the encrypted output.
+	* EVP_EncryptUpdate can be called multiple times if necessary
+	*/
+	if (1 != EVP_EncryptUpdate(ctx, ciphertext, &ciphertext_len, (const unsigned char *) pemStr.c_str(), pemStr.size())) {
+		eprintf("error encrypting\n");
+		return 1;
+	}
+	/* Clean up */
+	EVP_CIPHER_CTX_free(ctx);
+
+	/* send encrypted proof to enclave */
+	string proof((const char *) ciphertext, ciphertext_len);
+	size_t sz = proof.size();
+	msgio->send_partial(&sz, sizeof(size_t));
+	msgio->send((void *) proof.c_str(), sz);
+	printf("Sent proof info to enclave...\n");
 	return 0;
 }
 
 int send_pubkey(MsgIO *msgio) {
-	/* TODO: encrypt public key to send to enclave */
+	/* TODO: generate pub key and encrypt public key to send to enclave */
 	const sgx_ec256_public_t client_pub_key = {
 		{
 			0x72, 0x12, 0x8a, 0x7a, 0x17, 0x52, 0x6e, 0xbf,
@@ -881,9 +917,7 @@ int process_msg3 (MsgIO *msgio, IAS_Connection *ias, sgx_ra_msg1_t *msg1,
 		}
 
 		/*
-		 * TODO: maybe obtain MRSIGNER and MRENCLAVE through same medium as enclave's public key
-		 * A real service provider would validate that the enclave
-		 * report is from an enclave that they recognize. Namely,
+		 * Validate that the enclave report is from a recognized enclave. Namely,
 		 * that the MRSIGNER matches our signing key, and the MRENCLAVE
 		 * hash matches an enclave that we compiled.
 		 *
@@ -1134,14 +1168,13 @@ int process_msg01 (MsgIO *msgio, IAS_Connection *ias, sgx_ra_msg1_t *msg1,
 	/* Get the sigrl */
 
 	printf("gid: %d\n", msg1->gid);
-	return 0;
 
-	if ( ! get_sigrl(ias, config->apiver, msg1->gid, sigrl,
-		&msg2->sig_rl_size) ) {
+	// if ( ! get_sigrl(ias, config->apiver, msg1->gid, sigrl,
+	// 	&msg2->sig_rl_size) ) {
 
-		eprintf("could not retrieve the sigrl\n");
-		return 0;
-	}
+	// 	eprintf("could not retrieve the sigrl\n");
+	// 	return 0;
+	// }
 
 	memcpy(gb_ga, &msg2->g_b, 64);
 	memcpy(session->g_b, &msg2->g_b, 64);
@@ -1166,26 +1199,26 @@ int process_msg01 (MsgIO *msgio, IAS_Connection *ias, sgx_ra_msg1_t *msg1,
 	cmac128(session->smk, (unsigned char *) msg2, 148,
 		(unsigned char *) &msg2->mac);
 
-	if ( verbose ) {
-		edividerWithText("Msg2 Details");
-		eprintf("msg2.g_b.gx      = %s\n",
-			hexstring(&msg2->g_b.gx, sizeof(msg2->g_b.gx)));
-		eprintf("msg2.g_b.gy      = %s\n",
-			hexstring(&msg2->g_b.gy, sizeof(msg2->g_b.gy)));
-		eprintf("msg2.spid        = %s\n",
-			hexstring(&msg2->spid, sizeof(msg2->spid)));
-		eprintf("msg2.quote_type  = %s\n",
-			hexstring(&msg2->quote_type, sizeof(msg2->quote_type)));
-		eprintf("msg2.kdf_id      = %s\n",
-			hexstring(&msg2->kdf_id, sizeof(msg2->kdf_id)));
-		eprintf("msg2.sign_ga_gb  = %s\n",
-			hexstring(&msg2->sign_gb_ga, sizeof(msg2->sign_gb_ga)));
-		eprintf("msg2.mac         = %s\n",
-			hexstring(&msg2->mac, sizeof(msg2->mac)));
-		eprintf("msg2.sig_rl_size = %s\n",
-			hexstring(&msg2->sig_rl_size, sizeof(msg2->sig_rl_size)));
-		edivider();
-	}
+	// if ( verbose ) {
+	// 	edividerWithText("Msg2 Details");
+	// 	eprintf("msg2.g_b.gx      = %s\n",
+	// 		hexstring(&msg2->g_b.gx, sizeof(msg2->g_b.gx)));
+	// 	eprintf("msg2.g_b.gy      = %s\n",
+	// 		hexstring(&msg2->g_b.gy, sizeof(msg2->g_b.gy)));
+	// 	eprintf("msg2.spid        = %s\n",
+	// 		hexstring(&msg2->spid, sizeof(msg2->spid)));
+	// 	eprintf("msg2.quote_type  = %s\n",
+	// 		hexstring(&msg2->quote_type, sizeof(msg2->quote_type)));
+	// 	eprintf("msg2.kdf_id      = %s\n",
+	// 		hexstring(&msg2->kdf_id, sizeof(msg2->kdf_id)));
+	// 	eprintf("msg2.sign_ga_gb  = %s\n",
+	// 		hexstring(&msg2->sign_gb_ga, sizeof(msg2->sign_gb_ga)));
+	// 	eprintf("msg2.mac         = %s\n",
+	// 		hexstring(&msg2->mac, sizeof(msg2->mac)));
+	// 	eprintf("msg2.sig_rl_size = %s\n",
+	// 		hexstring(&msg2->sig_rl_size, sizeof(msg2->sig_rl_size)));
+	// 	edivider();
+	// }
 
 	free(msg01);
 

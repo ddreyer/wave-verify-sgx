@@ -33,76 +33,6 @@ in the License.
 /* data for enclave's asymmetric key */
 uint8_t *sealed_key;
 
-/*----------------------------------------------------------------------
- * WARNING
- *----------------------------------------------------------------------
- *
- * End developers should not normally be calling these functions
- * directly when doing remote attestation:
- *
- *    sgx_get_ps_sec_prop()
- *    sgx_get_quote()
- *    sgx_get_quote_size()
- *    sgx_get_report()
- *    sgx_init_quote()
- *
- * These functions short-circuits the RA process in order
- * to generate an enclave quote directly!
- *
- * The high-level functions provided for remote attestation take
- * care of the low-level details of quote generation for you:
- *
- *   sgx_ra_init()
- *   sgx_ra_get_msg1
- *   sgx_ra_proc_msg2
- *
- *----------------------------------------------------------------------
- */
-
-/*
- * This doesn't really need to be a C++ source file, but a bug in 
- * 2.1.3 and earlier implementations of the SGX SDK left a stray
- * C++ symbol in libsgx_tkey_exchange.so so it won't link without
- * a C++ compiler. Just making the source C++ was the easiest way
- * to deal with that.
- */
-
-// sgx_status_t get_report(sgx_report_t *report, sgx_target_info_t *target_info)
-// {
-// #ifdef SGX_HW_SIM
-// 	return sgx_create_report(NULL, NULL, report);
-// #else
-// 	return sgx_create_report(target_info, NULL, report);
-// #endif
-// }
-
-// size_t get_pse_manifest_size ()
-// {
-// 	return sizeof(sgx_ps_sec_prop_desc_t);
-// }
-
-// sgx_status_t get_pse_manifest(char *buf, size_t sz)
-// {
-// 	sgx_ps_sec_prop_desc_t ps_sec_prop_desc;
-// 	sgx_status_t status= SGX_ERROR_SERVICE_UNAVAILABLE;
-// 	int retries= PSE_RETRIES;
-
-// 	do {
-// 		status= sgx_create_pse_session();
-// 		if ( status != SGX_SUCCESS ) return status;
-// 	} while (status == SGX_ERROR_BUSY && retries--);
-// 	if ( status != SGX_SUCCESS ) return status;
-
-// 	status= sgx_get_ps_sec_prop(&ps_sec_prop_desc);
-// 	if ( status != SGX_SUCCESS ) return status;
-
-// 	memcpy(buf, &ps_sec_prop_desc, sizeof(ps_sec_prop_desc));
-
-// 	sgx_close_pse_session();
-
-// 	return status;
-// }
-
 sgx_status_t enclave_ra_init(sgx_ec256_public_t key, int b_pse,
 	sgx_ra_context_t *ctx, sgx_status_t *pse_status)
 {
@@ -177,20 +107,20 @@ sgx_status_t ecall_create_keys() {
 sgx_status_t ecall_verify_proof(char *cipher, size_t cipher_size, sgx_ra_context_t ctx) 
 {
     ocall_print("Enclave: Inside enclave to verify the proof");
-
 	/* First, get symmetric key to decrypt */
-	/* TODO: And verification key? check signature? */
-	sgx_ra_key_128_t k;
-	sgx_status_t status = sgx_ra_get_keys(ctx, SGX_RA_KEY_SK, &k);
+	/* TODO: sign message? Fix hardcoded key*/
+	// sgx_ra_key_128_t k;
+	// sgx_status_t status = sgx_ra_get_keys(ctx, SGX_RA_KEY_SK, &k);
+	sgx_ra_key_128_t *k = (sgx_ra_key_128_t *)"0123456789012345";
+	/* TODO: fix IV */
+	unsigned char *iv = (unsigned char *)"0123456789012345";
 	EVP_CIPHER_CTX *kctx;
 	int outlen, ret;
 	unsigned char decrypted[cipher_size];
 	kctx = EVP_CIPHER_CTX_new();
 	/* Select cipher */
-	EVP_DecryptInit_ex(kctx, EVP_aes_128_gcm(), NULL, NULL, NULL);
-	/* Specify key and IV */
-	EVP_DecryptInit_ex(kctx, NULL, NULL, (const unsigned char *) &k, (const unsigned char *) nonce);
-	/* Decrypt plaintext */
+	EVP_DecryptInit_ex(kctx, EVP_aes_128_gcm(), NULL, (const unsigned char *) k, iv);
+	/* Decrypt ciphertext */
 	ret = EVP_DecryptUpdate(kctx, decrypted, &outlen, (const unsigned char *) cipher, cipher_size);
 	EVP_CIPHER_CTX_free(kctx);
 	if (!ret) {
@@ -199,8 +129,8 @@ sgx_status_t ecall_verify_proof(char *cipher, size_t cipher_size, sgx_ra_context
 	}
 	ocall_print("proof decryption succeeded");
 
-    // verify proof
-	if (verify(decrypted)) {
+	/* verify proof */
+	if (verify((char *) decrypted)) {
 		return SGX_ERROR_UNEXPECTED;
 	}
 	ocall_print("verifying proof succeeded");

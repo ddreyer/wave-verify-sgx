@@ -61,6 +61,7 @@
         "asn_internal.h": "c",
         "asn_application.h": "c",
         "asn_codecs.h": "c",
-        "ctime": "cpp"
+        "ctime": "cpp",
+        "stdexcept": "cpp"
     }
 }
