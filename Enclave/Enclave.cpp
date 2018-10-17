@@ -66,43 +66,6 @@ sgx_status_t enclave_ra_init(sgx_ec256_public_t key, int b_pse,
 	return ra_status;
 }
 
-sgx_status_t ecall_create_keys() {
-	BIGNUM *bn = BN_new();
-	if (bn == NULL) {
-		return SGX_ERROR_UNEXPECTED;
-	}
-	int ret = BN_set_word(bn, RSA_F4);
-	if (!ret) {
-		return SGX_ERROR_UNEXPECTED;
-	}
-
-	RSA *keypair = RSA_new();
-	if (keypair == NULL) {
-		return SGX_ERROR_UNEXPECTED;
-	}
-	ret = RSA_generate_key_ex(keypair, 4096, bn, NULL);
-	if (!ret) {
-		return SGX_ERROR_UNEXPECTED;
-	}
-
-	// EVP_PKEY *evp_pkey = EVP_PKEY_new();
-	// if (evp_pkey == NULL) {
-	// 	return SGX_ERROR_UNEXPECTED;
-	// }
-	// EVP_PKEY_assign_RSA(evp_pkey, keypair);
-	
-	// size_t sealed_size = sizeof(sgx_sealed_data_t) + sizeof(evp_pkey_st);
-    // sealed_key = (uint8_t *) malloc(sealed_size);
-    // sgx_status_t status = sgx_seal_data(0, NULL, sizeof(evp_pkey_st), 
-    //     (uint8_t *) evp_pkey, sealed_size, (sgx_sealed_data_t *) sealed_key);
-
-	BN_free(bn);
-	// EVP_PKEY_free(evp_pkey);
-	RSA_free(keypair);
-
-    // return status;
-}
-
 /* Enclave message verification */
 sgx_status_t ecall_verify_proof(char *cipher, size_t cipher_size, sgx_ra_context_t ctx) 
 {

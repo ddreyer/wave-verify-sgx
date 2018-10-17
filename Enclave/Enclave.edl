@@ -44,8 +44,6 @@ enclave {
 			sgx_ra_key_type_t type, [out] sgx_sha256_hash_t *hash);
 
 		public sgx_status_t enclave_ra_close(sgx_ra_context_t ctx);
-
-		public sgx_status_t ecall_create_keys();
 	};
 
 	untrusted {

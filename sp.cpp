@@ -1169,12 +1169,12 @@ int process_msg01 (MsgIO *msgio, IAS_Connection *ias, sgx_ra_msg1_t *msg1,
 
 	printf("gid: %d\n", msg1->gid);
 
-	// if ( ! get_sigrl(ias, config->apiver, msg1->gid, sigrl,
-	// 	&msg2->sig_rl_size) ) {
+	if ( ! get_sigrl(ias, config->apiver, msg1->gid, sigrl,
+		&msg2->sig_rl_size) ) {
 
-	// 	eprintf("could not retrieve the sigrl\n");
-	// 	return 0;
-	// }
+		eprintf("could not retrieve the sigrl\n");
+		return 0;
+	}
 
 	memcpy(gb_ga, &msg2->g_b, 64);
 	memcpy(session->g_b, &msg2->g_b, 64);
@@ -1199,26 +1199,26 @@ int process_msg01 (MsgIO *msgio, IAS_Connection *ias, sgx_ra_msg1_t *msg1,
 	cmac128(session->smk, (unsigned char *) msg2, 148,
 		(unsigned char *) &msg2->mac);
 
-	// if ( verbose ) {
-	// 	edividerWithText("Msg2 Details");
-	// 	eprintf("msg2.g_b.gx      = %s\n",
-	// 		hexstring(&msg2->g_b.gx, sizeof(msg2->g_b.gx)));
-	// 	eprintf("msg2.g_b.gy      = %s\n",
-	// 		hexstring(&msg2->g_b.gy, sizeof(msg2->g_b.gy)));
-	// 	eprintf("msg2.spid        = %s\n",
-	// 		hexstring(&msg2->spid, sizeof(msg2->spid)));
-	// 	eprintf("msg2.quote_type  = %s\n",
-	// 		hexstring(&msg2->quote_type, sizeof(msg2->quote_type)));
-	// 	eprintf("msg2.kdf_id      = %s\n",
-	// 		hexstring(&msg2->kdf_id, sizeof(msg2->kdf_id)));
-	// 	eprintf("msg2.sign_ga_gb  = %s\n",
-	// 		hexstring(&msg2->sign_gb_ga, sizeof(msg2->sign_gb_ga)));
-	// 	eprintf("msg2.mac         = %s\n",
-	// 		hexstring(&msg2->mac, sizeof(msg2->mac)));
-	// 	eprintf("msg2.sig_rl_size = %s\n",
-	// 		hexstring(&msg2->sig_rl_size, sizeof(msg2->sig_rl_size)));
-	// 	edivider();
-	// }
+	if ( verbose ) {
+		edividerWithText("Msg2 Details");
+		eprintf("msg2.g_b.gx      = %s\n",
+			hexstring(&msg2->g_b.gx, sizeof(msg2->g_b.gx)));
+		eprintf("msg2.g_b.gy      = %s\n",
+			hexstring(&msg2->g_b.gy, sizeof(msg2->g_b.gy)));
+		eprintf("msg2.spid        = %s\n",
+			hexstring(&msg2->spid, sizeof(msg2->spid)));
+		eprintf("msg2.quote_type  = %s\n",
+			hexstring(&msg2->quote_type, sizeof(msg2->quote_type)));
+		eprintf("msg2.kdf_id      = %s\n",
+			hexstring(&msg2->kdf_id, sizeof(msg2->kdf_id)));
+		eprintf("msg2.sign_ga_gb  = %s\n",
+			hexstring(&msg2->sign_gb_ga, sizeof(msg2->sign_gb_ga)));
+		eprintf("msg2.mac         = %s\n",
+			hexstring(&msg2->mac, sizeof(msg2->mac)));
+		eprintf("msg2.sig_rl_size = %s\n",
+			hexstring(&msg2->sig_rl_size, sizeof(msg2->sig_rl_size)));
+		edivider();
+	}
 
 	free(msg01);
 
