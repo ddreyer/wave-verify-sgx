@@ -44,7 +44,7 @@ Enclave.signed.so: Enclave/Enclave.signed.so
 
 ## Additional automake variables
 AM_CFLAGS = -fPIC
-AM_CXXFLAGS = -std=c++11 -fPIC
+AM_CXXFLAGS = -std=c++11 -fPIC -I../utils
 AM_CPPFLAGS += -fno-builtin-memset @OPENSSL_CPPFLAGS@
 
 ## Additional targets to remove with 'make clean'. You must list
@@ -52,37 +52,27 @@ AM_CPPFLAGS += -fno-builtin-memset @OPENSSL_CPPFLAGS@
 
 CLEANFILES = Enclave_u.c Enclave_u.h Enclave.edl Enclave.signed.so
 
+AUTOMAKE_OPTIONS = subdir-objects
 
 ## The build target
 
-server: sp
-
-bin_PROGRAMS = client sp 
+bin_PROGRAMS = enclave_app 
 
 ## You can't use $(wildcard ...) with automake so all source files 
 ## have to be explicitly listed.
 
-common = byteorder.c common.cpp crypto.c hexutil.c fileio.c base64.c \
-	msgio.cpp logfile.c
+common = ../utils/byteorder.c ../utils/common.cpp ../utils/crypto.c ../utils/hexutil.c \
+		../utils/fileio.c ../utils/base64.c ../utils/msgio.cpp ../utils/logfile.c
 
 ## client 
 
-client_SOURCES = client.cpp sgx_detect_linux.c sgx_stub.c \
+enclave_app_SOURCES = enclave_app.cpp sgx_detect_linux.c sgx_stub.c \
 	$(common)
-nodist_client_SOURCES = Enclave_u.c Enclave_u.h
-EXTRA_client_DEPENDENCIES = Enclave.signed.so
+nodist_enclave_app_SOURCES = Enclave_u.c Enclave_u.h
+EXTRA_enclave_app_DEPENDENCIES = Enclave.signed.so
 BUILT_SOURCES = Enclave_u.c Enclave_u.h
 
-client_LDFLAGS= $(AM_LDFLAGS) @OPENSSL_LDFLAGS@ -L$(SGXSSL_LIBDIR)
-
-## sp
-
-sp_SOURCES = sp.cpp agent_wget.cpp iasrequest.cpp $(common)
-if AGENT_CURL
-sp_SOURCES += agent_curl.cpp
-endif
-
-sp_LDFLAGS= $(AM_LDFLAGS) @OPENSSL_LDFLAGS@ @CURL_LDFLAGS@
+enclave_app_LDFLAGS= $(AM_LDFLAGS) @OPENSSL_LDFLAGS@ -L$(SGXSSL_LIBDIR)
 
 ## Library flags. At minimum, an Intel SGX application will need:
 ##
@@ -96,7 +86,6 @@ sp_LDFLAGS= $(AM_LDFLAGS) @OPENSSL_LDFLAGS@ @CURL_LDFLAGS@
 ## Use the variables, not the actual library names to ensure these
 ## targets work on simulation builds.
 
-client_LDADD=-l$(SGX_URTS_LIB) -lsgx_ukey_exchange -l$(SGX_UAE_SERVICE_LIB) \
+enclave_app_LDADD=-l$(SGX_URTS_LIB) -lsgx_ukey_exchange -l$(SGX_UAE_SERVICE_LIB) \
 	-lcrypto -l:libsgx_capable.a -lpthread -ldl -lsgx_usgxssl
 
-sp_LDADD=-lcrypto @CURL_LIBS@

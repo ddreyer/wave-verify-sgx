@@ -31,7 +31,7 @@
 #define DEFAULT_CA_BUNDLE_WIN32	"C:\\Program Files\\cURL\\bin\\curl-ca-bundle.crt"
 
 /*----------------------------------------------------------------------
- * Global Options
+ * Global Settings
  *----------------------------------------------------------------------
 */
 
@@ -44,5 +44,7 @@
 
 /* Set to non-zero for debugging output */
 #define DEBUG 1
+
+#define PROOF_FILE "proof0.2.2.pem"
 
 #endif

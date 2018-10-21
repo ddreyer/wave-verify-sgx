@@ -104,11 +104,9 @@ AC_DEFINE_UNQUOTED([DEFAULT_CA_BUNDLE_AUTO], ["$ac_cv_default_ca_bundle_auto"],
 dnl Write our configuration
 dnl ----------------------------------------------------------------------
 AC_CONFIG_FILES([
-	run-server:run.in
 	run-client:run.in
 	Makefile
-	Enclave/Makefile
-],[chmod -f 755 run-client run-server])
+],[chmod -f 755 run-client])
 
 AC_OUTPUT
 

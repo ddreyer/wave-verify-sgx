@@ -86,7 +86,7 @@ ASN_PROGRAM_SRCS = wave-verify/utils.cpp\
 	wave-verify/asn.cpp\
 	wave-verify/verify.cpp
 
-Enclave_SOURCES = $(HASH_SRCS) $(ED_SRCS) $(ASN_MODULE_SRCS) $(ASN_PROGRAM_SRCS) Enclave_t.c Enclave_t.h Enclave.cpp \
+Enclave_SOURCES = Enclave_t.c Enclave_t.h $(HASH_SRCS) $(ED_SRCS) $(ASN_MODULE_SRCS) $(ASN_PROGRAM_SRCS) Enclave.cpp \
 	$(ENCLAVE_KEY) $(ENCLAVE_CONFIG)
 
 

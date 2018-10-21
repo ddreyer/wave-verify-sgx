@@ -637,7 +637,7 @@ disconnect:
 int send_proof(MsgIO *msgio) {
 	printf("Reading in proof PEM file...\n");
 
-	string proofFile("proof0.2.2.pem");
+	string proofFile(PROOF_FILE);
 	ifstream t(proofFile);
 	string pemStr((istreambuf_iterator<char>(t)),
 							istreambuf_iterator<char>());

@@ -204,7 +204,7 @@ int MsgIO::server_loop ()
 
 	// This will block until we get a client.
 
-	printf("Waiting for a client to connect...\n");
+	printf("Waiting for an enclave app to connect...\n");
 	fflush(stdout);
 
 	s = accept(ls, (sockaddr *) &cliaddr, &slen);

@@ -71,12 +71,12 @@ fi
 # Execute
 #----------------------------------------------------------------------------
 
-if [ "$PROG" = "run-client" ]
+if [ "$PROG" = "run-enclave-app" ]
 then
-	./client
-elif [ "$PROG" = "run-server" ]
+	./enclave_app
+elif [ "$PROG" = "run-client" ]
 then
-	./sp \
+	./client \
 		-s $SPID \
 		# -A "$IAS_REPORT_SIGNING_CA_FILE" \
 		# -C "$IAS_CLIENT_CERT_FILE" \
@@ -85,7 +85,7 @@ then
                 $sp_production \
 		"$@" 
 else
-	echo "$PROG: unrecognized instance (expected run-client or run-server)" >&2
+	echo "$PROG: unrecognized instance (expected run-client or run-enclave-app)" >&2
 	exit 1
 fi
 
