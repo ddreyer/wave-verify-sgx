@@ -29,6 +29,7 @@ in the License.
 #include <WS2tcpip.h>
 #endif
 #include <string>
+#include "settings.h"
 using namespace std;
 
 #define STRUCT_INCLUDES_PSIZE	0
@@ -36,8 +37,6 @@ using namespace std;
 
 /* A 1MB buffer should be sufficient for demo purposes */
 #define MSGIO_BUFFER_SZ	1024*1024
-
-#define DEFAULT_PORT	"7777"		// A C string for getaddrinfo()
 
 #ifndef _WIN32
 typedef int SOCKET;

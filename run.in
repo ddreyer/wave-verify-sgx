@@ -24,19 +24,6 @@ then
 	fi
 fi
 
-# Do we need to add curl's libdir?
-
-CURL_LIBDIR=@CURL_LIBDIR@
-if [ "$CURL_LIBDIR" != "" ]
-then
-	if [ "$LD_LIBRARY_PATH" = "" ]
-	then
-		export LD_LIBRARY_PATH=$OPENSSL_LIBDIR
-	else
-		export LD_LIBRARY_PATH=$OPENSSL_LIBDIR:$LD_LIBRARY_PATH
-	fi
-fi
-
 #----------------------------------------------------------------------------
 # Parse our settings file
 #----------------------------------------------------------------------------
@@ -51,16 +38,6 @@ fi
 
 if [ "$LINKABLE" != "" -a "0$LINKABLE" -ne 0 ]; then
 	flag_linkable=-l
-fi
-
-# Optional client settings
-
-if [ "$RANDOM_NONCE" != "" -a "0$RANDOM_NONCE" -ne 0 ]; then
-	cl_nonce=-r
-fi
-
-if [ "$USE_PLATFORM_SERVICES" != "" -a "0$USE_PLATFORM_SERVICES" -ne 0 ]; then
-	cl_pse=-m
 fi
 
 # Optional service provider/server settings
@@ -90,36 +67,21 @@ if [ "$POLICY_STRICT_TRUST" != "" -a "0$POLICY_STRICT_TRUST" -ne 0 ]; then
 fi
 
 
-# Debugging options
-
-if [ "$VERBOSE" != "" -a "0$VERBOSE" -ne 0 ]; then
-	flag_verbose=-v
-fi
-
-if [ "$DEBUG" != "" -a "0$DEBUG" -ne 0 ]; then
-	flag_debug=-d
-fi
-
-
 #----------------------------------------------------------------------------
 # Execute
 #----------------------------------------------------------------------------
 
 if [ "$PROG" = "run-client" ]
 then
-	./client \
-		-s $SPID \
-		$cl_nonce $cl_pse \
-		$flag_linkable $flag_debug $flag_verbose \
-		"$@"
+	./client
 elif [ "$PROG" = "run-server" ]
 then
 	./sp \
 		-s $SPID \
-		-A "$IAS_REPORT_SIGNING_CA_FILE" \
-		-C "$IAS_CLIENT_CERT_FILE" \
+		# -A "$IAS_REPORT_SIGNING_CA_FILE" \
+		# -C "$IAS_CLIENT_CERT_FILE" \
 		$sp_cert_key $sp_noproxy $sp_proxy $sp_cert_passwd $sp_cert_type \
-		$flag_linkable $sp_strict_trust $flag_debug $flag_verbose \
+		$flag_linkable $sp_strict_trust \
                 $sp_production \
 		"$@" 
 else

@@ -30,7 +30,7 @@ SUBDIRS = Enclave
 
 ## Supply additional flags to edger8r here. 
 ##
-SGX_EDGER8R_FLAGS=--search-path /home/sgx/intel-sgx-ssl/Linux/package/include
+SGX_EDGER8R_FLAGS=--search-path $(SGXSSL_INCDIR)
 
 
 ## Needed to make our pattern rule work
@@ -43,12 +43,8 @@ Enclave.signed.so: Enclave/Enclave.signed.so
 
 
 ## Additional automake variables
-##
-## AM_CPPFLAGS += 
-## AM_CFLAGS = 
-
-AM_CXXFLAGS = -std=c++11 
-
+AM_CFLAGS = -fPIC
+AM_CXXFLAGS = -std=c++11 -fPIC
 AM_CPPFLAGS += -fno-builtin-memset @OPENSSL_CPPFLAGS@
 
 ## Additional targets to remove with 'make clean'. You must list
@@ -71,13 +67,13 @@ common = byteorder.c common.cpp crypto.c hexutil.c fileio.c base64.c \
 
 ## client 
 
-client_SOURCES = client.cpp sgx_detect_linux.c sgx_stub.c quote_size.c \
+client_SOURCES = client.cpp sgx_detect_linux.c sgx_stub.c \
 	$(common)
 nodist_client_SOURCES = Enclave_u.c Enclave_u.h
 EXTRA_client_DEPENDENCIES = Enclave.signed.so
 BUILT_SOURCES = Enclave_u.c Enclave_u.h
 
-client_LDFLAGS= $(AM_LDFLAGS) @OPENSSL_LDFLAGS@ -L/home/sgx/intel-sgx-ssl/Linux/package/lib64
+client_LDFLAGS= $(AM_LDFLAGS) @OPENSSL_LDFLAGS@ -L$(SGXSSL_LIBDIR)
 
 ## sp
 

@@ -30,5 +30,19 @@
 /* Default CA bundle file on Windows */
 #define DEFAULT_CA_BUNDLE_WIN32	"C:\\Program Files\\cURL\\bin\\curl-ca-bundle.crt"
 
+/*----------------------------------------------------------------------
+ * Global Options
+ *----------------------------------------------------------------------
+*/
+
+#define DEFAULT_PORT	"7777"		// A C string for getaddrinfo()
+
+#define DEFAULT_SERVER "localhost"
+
+/* Set to non-zero for verbose output */
+#define VERBOSE 1
+
+/* Set to non-zero for debugging output */
+#define DEBUG 1
 
 #endif

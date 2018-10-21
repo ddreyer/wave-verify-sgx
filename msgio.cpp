@@ -293,7 +293,7 @@ again:
 		if ( bread > 0 ) {
 			size_t idx;
 
-			if ( debug ) eprintf("+++ read %ld bytes from socket\n", bread);
+			if ( DEBUG ) eprintf("+++ read %ld bytes from socket\n", bread);
 			rbuffer.append(lbuffer, bread);
 			idx= rbuffer.find("\r\n");
 			if ( idx == string::npos ) {
@@ -315,7 +315,7 @@ again:
 				return -1;
 			}
 
-			if (debug) {
+			if (DEBUG) {
 				edividerWithText("read buffer");
 				fwrite(rbuffer.c_str(), 1, idx, stdout);
 				printf("\n");
@@ -449,7 +449,7 @@ int read_msg(void **dest, size_t *sz)
 	*dest = malloc(bread / 2);
 	if (*dest == NULL) return -1;
 
-	if (debug) {
+	if (DEBUG) {
 		edividerWithText("read buffer");
 		eputs(buffer);
 		edivider();

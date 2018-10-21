@@ -26,23 +26,6 @@ LINKABLE=0
 
 
 #======================================================================
-# Client options
-#======================================================================
-
-# Set to non-zero to have the client generate a random nonce.
-
-RANDOM_NONCE=1
-
-# Set to non-zero to have the client generate a platform manifest.
-# This requires a PSE session, and thus support for platform
-# services.
-#
-# (Note that server hardware does not support platform services)
-
-USE_PLATFORM_SERVICES=0
-
-
-#======================================================================
 # Service provider (server) options
 #======================================================================
 
@@ -103,18 +86,3 @@ IAS_PROXY_URL=http://proxy-us.intel.com:911/
 # DISABLED by default.
 
 # POLICY_STRICT_TRUST=1
-
-
-#======================================================================
-# Debugging options
-#======================================================================
-
-# Set to non-zero for verbose output
-
-VERBOSE=1
-
-
-# Set to non-zero for debugging output
-
-DEBUG=1
-

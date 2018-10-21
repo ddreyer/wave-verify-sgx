@@ -25,45 +25,12 @@ in the License.
 #include <sgx_tkey_exchange.h>
 #include <sgx_tcrypto.h>
 #include "sgx_tseal.h"
-
 #include <verify.h>
 
-#define PSE_RETRIES	5	/* Arbitrary. Not too long, not too short. */
-
-/* data for enclave's asymmetric key */
-uint8_t *sealed_key;
-
 sgx_status_t enclave_ra_init(sgx_ec256_public_t key, int b_pse,
-	sgx_ra_context_t *ctx, sgx_status_t *pse_status)
+	sgx_ra_context_t *ctx)
 {
-	sgx_status_t ra_status;
-
-	/*
-	 * If we want platform services, we must create a PSE session 
-	 * before calling sgx_ra_init()
-	 */
-
-	if ( b_pse ) {
-		int retries= PSE_RETRIES;
-		do {
-			*pse_status= sgx_create_pse_session();
-			if ( *pse_status != SGX_SUCCESS ) return SGX_ERROR_UNEXPECTED;
-		} while (*pse_status == SGX_ERROR_BUSY && retries--);
-		if ( *pse_status != SGX_SUCCESS ) return SGX_ERROR_UNEXPECTED;
-	}
-
-	ra_status= sgx_ra_init(&key, b_pse, ctx);
-
-	if ( b_pse ) {
-		int retries= PSE_RETRIES;
-		do {
-			*pse_status= sgx_create_pse_session();
-			if ( *pse_status != SGX_SUCCESS ) return SGX_ERROR_UNEXPECTED;
-		} while (*pse_status == SGX_ERROR_BUSY && retries--);
-		if ( *pse_status != SGX_SUCCESS ) return SGX_ERROR_UNEXPECTED;
-	}
-
-	return ra_status;
+	return sgx_ra_init(&key, b_pse, ctx);
 }
 
 /* Enclave message verification */

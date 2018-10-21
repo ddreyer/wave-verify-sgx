@@ -44,7 +44,7 @@ include Makefile.am.libasncodec
 
 ## Supply additional flags to edger8r here. 
 
-SGX_EDGER8R_FLAGS=--search-path .. --search-path /home/sgx/intel-sgx-ssl/Linux/package/include
+SGX_EDGER8R_FLAGS=--search-path .. --search-path $(SGXSSL_INCDIR)
 
 ## The name of your enclave, enclave config file, and private key
 ## file go in these variables. The ENCLAVE variable creates the
@@ -62,7 +62,7 @@ ENCLAVE_KEY=$(ENCLAVE)_private.pem
 ## AM_CPPFLAGS += 
 ## AM_CXXFLAGS +=
 
-AM_CXXFLAGS += -I. -I.. -I$(SGX_SDK)/include/libcxx -Iwave-verify -Iwave-verify/asn1c_files -I/home/sgx/intel-sgx-ssl/Linux/package/include
+AM_CXXFLAGS += -I. -I.. -I$(SGX_SDK)/include/libcxx -Iwave-verify -Iwave-verify/asn1c_files -I$(SGXSSL_INCDIR)
 AM_CFLAGS += -I. -I.. -I$(SGX_SDK)/include/libcxx -Iwave-verify -Iwave-verify/asn1c_files
 
 ## Additional files to remove with 'make clean'. This list needs
@@ -107,7 +107,7 @@ Enclave_SOURCES = $(HASH_SRCS) $(ED_SRCS) $(ASN_MODULE_SRCS) $(ASN_PROGRAM_SRCS)
 ## of the definition to make sure you pick up the right linker flags
 ## and SGX trusted libraries.
 
-Enclave_LDADD = @SGX_ENCLAVE_LDADD@ -L/home/sgx/intel-sgx-ssl/Linux/package/lib64
+Enclave_LDADD = @SGX_ENCLAVE_LDADD@ -L$(SGXSSL_LIBDIR)
 
 
 ## Place any additional trusted libraries that your enclave may need in

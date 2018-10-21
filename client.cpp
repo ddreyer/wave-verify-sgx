@@ -15,7 +15,6 @@ in the License.
 
 */
 
-
 using namespace std;
 
 #ifdef _WIN32
@@ -34,7 +33,6 @@ using namespace std;
 # include "Enclave_u.h"
 #endif
 #if !defined(SGX_HW_SIM)&&!defined(_WIN32)
-#include "sgx_stub.h"
 #endif
 #include <stdlib.h>
 #include <limits.h>
@@ -63,7 +61,7 @@ using namespace std;
 #include "crypto.h"
 #include "msgio.h"
 #include "logfile.h"
-#include "quote_size.h"
+#include "settings.h"
 
 #define MAX_LEN 80
 
@@ -79,12 +77,6 @@ using namespace std;
 #define DEF_LIB_SEARCHPATH "/lib:/usr/lib"
 #endif
 
-typedef struct config_struct {
-	uint32_t flags;
-	char *server;
-	char *port;
-} config_t;
-
 int file_in_searchpath (const char *file, const char *search, char *fullpath,
 	size_t len);
 
@@ -97,20 +89,8 @@ sgx_status_t sgx_create_enclave_search (
 	sgx_misc_attribute_t *attr
 );
 
-void usage();
-int do_verify(sgx_enclave_id_t eid, config_t *config);
-int do_attestation(sgx_enclave_id_t eid, config_t *config);
-
-char debug= 0;
-char verbose= 0;
-
-#define OPT_PSE		0x01
-
-/* Macros to set, clear, and get the mode and options */
-
-#define SET_OPT(x,y)	x|=y
-#define CLEAR_OPT(x,y)	x=x&~y
-#define OPT_ISSET(x,y)	x&y
+int do_verify(sgx_enclave_id_t eid);
+int do_attestation(sgx_enclave_id_t eid);
 
 #ifdef _WIN32
 # define ENCLAVE_NAME "Enclave.signed.dll"
@@ -120,7 +100,6 @@ char verbose= 0;
 
 int main (int argc, char *argv[])
 {
-	config_t config;
 	sgx_launch_token_t token= { 0 };
 	sgx_status_t status;
 	sgx_enclave_id_t eid= 0;
@@ -129,7 +108,7 @@ int main (int argc, char *argv[])
 	uint32_t i;
 	char have_spid= 0;
 
-	/* Create a logfile to capture debug output and actual msg data */
+	/* Create a logfile to capture DEBUG output and actual msg data */
 	fplog = create_logfile("client.log");
 	dividerWithText(fplog, "Client Log Timestamp");
 
@@ -151,75 +130,7 @@ int main (int argc, char *argv[])
 		lt.tm_sec);
 	divider(fplog);
 
-
-	memset(&config, 0, sizeof(config));
-
-	static struct option long_opt[] =
-	{
-		{"help",		no_argument,		0, 'h'},		
-		{"debug",		no_argument,		0, 'd'},
-		{"verbose",		no_argument,		0, 'v'},
-		{"stdio",		no_argument,		0, 'z'},
-		{ 0, 0, 0, 0 }
-	};
-
-	/* Parse our options */
-
-	while (1) {
-		int c;
-		int opt_index= 0;
-		unsigned char keyin[64];
-
-		c= getopt_long(argc, argv, "N:P:S:dehlmn:p:qrs:vz", long_opt,
-			&opt_index);
-		if ( c == -1 ) break;
-
-		switch(c) {
-		case 0:
-			break;
-		case 'd':
-			debug= 1;
-			break;
-		case 'm':
-			SET_OPT(config.flags, OPT_PSE);
-			break;
-		case 'v':
-			verbose= 1;
-			break;
-		case 'h':
-		case '?':
-		default:
-			usage();
-		}
-	}
-
-	argc-= optind;
-	if ( argc > 1 ) usage();
-
-	/* Remaining argument is host[:port] */
-
-	if ( !argc ) {
-		fprintf(stderr, "Need to specify host:port\n");
-			return 1;
-	} else {
-		char *cp;
-
-		config.server= strdup(argv[optind]);
-		if ( config.server == NULL ) {
-			perror("malloc");
-			return 1;
-		}
-		
-		/* If there's a : then we have a port, too */
-		cp= strchr(config.server, ':');
-		if ( cp != NULL ) {
-			*cp++= '\0';
-			config.port= cp;
-		}
-	}
-
 	/* Can we run SGX? */
-
 #ifndef SGX_HW_SIM
 	sgx_support = get_sgx_support();
 	if (sgx_support & SGX_SUPPORT_NO) {
@@ -266,38 +177,32 @@ int main (int argc, char *argv[])
 
 	/* for now, just do proof verification with no attestation */
 	/* TODO: how to establish initial connection */
-	do_verify(eid, &config);
-	// do_attestation(eid, &config);
+	do_verify(eid);
+	// do_attestation(eid);
 	return 0;
 
 	close_logfile(fplog);
 }
 
-int do_verify(sgx_enclave_id_t eid, config_t *config)
+int do_verify(sgx_enclave_id_t eid)
 {
-	sgx_status_t status, sgxrv, pse_status;
+	sgx_status_t status, sgxrv;
 	ra_msgproof_t *proof_info;
 	ra_msgkey_t *client_key;
 	uint8_t *encrypted_client_key;
 	uint32_t msg0_extended_epid_group_id = 0;
-	uint32_t flags= config->flags;
 	sgx_ra_context_t ra_ctx= 0xdeadbeef;
 	int rv;
 	MsgIO *msgio;
 	size_t msg4sz = 0;
 	int enclaveTrusted = 1; // Not Trusted
-	int b_pse= OPT_ISSET(flags, OPT_PSE);
 
-	if ( config->server == NULL ) {
-		msgio = new MsgIO();
-	} else {
-		try {
-			msgio = new MsgIO(config->server, (config->port == NULL) ?
-				DEFAULT_PORT : config->port);
-		}
-		catch(...) {
-			exit(1);
-		}
+
+	try {
+		msgio = new MsgIO(strdup(DEFAULT_SERVER), strdup(DEFAULT_PORT));
+	}
+	catch(...) {
+		exit(1);
 	}
 
 	/* read encrypted proof contents */
@@ -326,9 +231,9 @@ int do_verify(sgx_enclave_id_t eid, config_t *config)
 	return 0;
 }
 
-int do_attestation (sgx_enclave_id_t eid, config_t *config)
+int do_attestation (sgx_enclave_id_t eid)
 {
-	sgx_status_t status, sgxrv, pse_status;
+	sgx_status_t status, sgxrv;
 	sgx_ra_msg1_t msg1;
 	sgx_ra_msg2_t *msg2 = NULL;
 	sgx_ra_msg3_t *msg3 = NULL;
@@ -336,24 +241,17 @@ int do_attestation (sgx_enclave_id_t eid, config_t *config)
 	ra_msgkey_t *client_key;
 	uint32_t msg0_extended_epid_group_id = 0;
 	uint32_t msg3_sz;
-	uint32_t flags= config->flags;
 	sgx_ra_context_t ra_ctx= 0xdeadbeef;
 	int rv;
 	MsgIO *msgio;
 	size_t msg4sz = 0;
 	int enclaveTrusted = NotTrusted; // Not Trusted
-	int b_pse= OPT_ISSET(flags, OPT_PSE);
 
-	if ( config->server == NULL ) {
-		msgio = new MsgIO();
-	} else {
-		try {
-			msgio = new MsgIO(config->server, (config->port == NULL) ?
-				DEFAULT_PORT : config->port);
-		}
-		catch(...) {
-			exit(1);
-		}
+	try {
+		msgio = new MsgIO(strdup(DEFAULT_SERVER), strdup(DEFAULT_PORT));
+	}
+	catch(...) {
+		exit(1);
 	}
 
 	/* Executes an ECALL that runs sgx_ra_init() */
@@ -361,9 +259,9 @@ int do_attestation (sgx_enclave_id_t eid, config_t *config)
 	/* TODO: change this to take in encrypted public key */
 	// rv = msgio->read((void **) &encrypted_client_key, NULL);
 	rv = msgio->read((void **) &client_key, NULL);
-	if ( debug ) 
+	if ( DEBUG ) 
 		fprintf(stderr, "+++ using supplied public key\n");
-	status = enclave_ra_init(eid, &sgxrv, client_key->pubkey, b_pse, &ra_ctx, &pse_status);
+	status = enclave_ra_init(eid, &sgxrv, client_key->pubkey, 0, &ra_ctx);
 
 	/* Did the ECALL succeed? */
 	if ( status != SGX_SUCCESS ) {
@@ -371,29 +269,14 @@ int do_attestation (sgx_enclave_id_t eid, config_t *config)
 		return 1;
 	}
 
-	/* If we asked for a PSE session, did that succeed? */
-	if (b_pse) {
-		if ( pse_status != SGX_SUCCESS ) {
-			fprintf(stderr, "pse_session: %08x\n", sgxrv);
-			return 1;
-		}
-	}
-
-	/* Did sgx_ra_init() succeed? */
-	if ( sgxrv != SGX_SUCCESS ) {
-		fprintf(stderr, "sgx_ra_init: %08x\n", sgxrv);
-		return 1;
-	}
-
 	/* Generate msg0 */
-
 	status = sgx_get_extended_epid_group_id(&msg0_extended_epid_group_id);
 	if ( status != SGX_SUCCESS ) {
                 enclave_ra_close(eid, &sgxrv, ra_ctx); 
 		fprintf(stderr, "sgx_get_extended_epid_group_id: %08x\n", status);
 		return 1;
 	}
-	if ( verbose ) {
+	if ( VERBOSE ) {
 		dividerWithText(stderr, "Msg0 Details");
 		dividerWithText(fplog, "Msg0 Details");
 		fprintf(stderr,   "Extended Epid Group ID: ");
@@ -418,7 +301,7 @@ int do_attestation (sgx_enclave_id_t eid, config_t *config)
 		return 1;
 	}
 
-	if ( verbose ) {
+	if ( VERBOSE ) {
 		dividerWithText(stderr,"Msg1 Details");
 		dividerWithText(fplog,"Msg1 Details");
 		fprintf(stderr,   "msg1.g_a.gx = ");
@@ -482,7 +365,7 @@ int do_attestation (sgx_enclave_id_t eid, config_t *config)
 		exit(1);
 	}
 
-	if ( verbose ) {
+	if ( VERBOSE ) {
 		dividerWithText(stderr, "Msg2 Details");
 		dividerWithText(fplog, "Msg2 Details (Received from SP)");
 		fprintf(stderr,   "msg2.g_b.gx      = ");
@@ -527,7 +410,7 @@ int do_attestation (sgx_enclave_id_t eid, config_t *config)
 		divider(fplog);
 	}
 
-	if ( debug ) {
+	if ( DEBUG ) {
 		fprintf(stderr, "+++ msg2_size = %zu\n",
 			sizeof(sgx_ra_msg2_t)+msg2->sig_rl_size);
 		fprintf(fplog, "+++ msg2_size = %zu\n",
@@ -557,12 +440,12 @@ int do_attestation (sgx_enclave_id_t eid, config_t *config)
 		return 1;
 	} 
 
-	if ( debug ) {
+	if ( DEBUG ) {
 		fprintf(stderr, "+++ msg3_size = %u\n", msg3_sz);
 		fprintf(fplog, "+++ msg3_size = %u\n", msg3_sz);
 	}
 	                          
-	if ( verbose ) {
+	if ( VERBOSE ) {
 		dividerWithText(stderr, "Msg3 Details");
 		dividerWithText(fplog, "Msg3 Details");
 		fprintf(stderr,   "msg3.mac         = ");
@@ -640,11 +523,11 @@ int do_attestation (sgx_enclave_id_t eid, config_t *config)
 	int retPibCmp = memcmp(&emptyPIB, (void *)(&msg4->platformInfoBlob), sizeof (sgx_platform_info_t));
 
 	if (retPibCmp == 0 ) {
-		if ( verbose ) eprintf("A Platform Info Blob (PIB) was NOT provided by the IAS\n");
+		if ( VERBOSE ) eprintf("A Platform Info Blob (PIB) was NOT provided by the IAS\n");
 	} else {
-		if ( verbose ) eprintf("A Platform Info Blob (PIB) was provided by the IAS\n");
+		if ( VERBOSE ) eprintf("A Platform Info Blob (PIB) was provided by the IAS\n");
 
-		if ( debug )  {
+		if ( DEBUG )  {
 			eprintf("+++ PIB: " );
 			print_hexstring(stderr, &msg4->platformInfoBlob, sizeof (sgx_platform_info_t));
 			print_hexstring(fplog, &msg4->platformInfoBlob, sizeof (sgx_platform_info_t));
@@ -656,7 +539,7 @@ int do_attestation (sgx_enclave_id_t eid, config_t *config)
 		sgx_status_t ret = sgx_report_attestation_status(&msg4->platformInfoBlob, 
 			enclaveTrusted, &update_info);
 
-		if ( debug )  eprintf("+++ sgx_report_attestation_status ret = 0x%04x\n", ret);
+		if ( DEBUG )  eprintf("+++ sgx_report_attestation_status ret = 0x%04x\n", ret);
 
 		edivider();
 
@@ -696,23 +579,23 @@ int do_attestation (sgx_enclave_id_t eid, config_t *config)
 
 		// First the MK
 
-		if ( debug ) eprintf("+++ fetching SHA256(MK)\n");
+		if ( DEBUG ) eprintf("+++ fetching SHA256(MK)\n");
 		status= enclave_ra_get_key_hash(eid, &sha_status, &key_status, ra_ctx,
 			SGX_RA_KEY_MK, &mkhash);
-		if ( debug ) eprintf("+++ ECALL enclage_ra_get_key_hash (MK) ret= 0x%04x\n",
+		if ( DEBUG ) eprintf("+++ ECALL enclage_ra_get_key_hash (MK) ret= 0x%04x\n",
 			status);
 
-		if ( debug ) eprintf("+++ sgx_ra_get_keys (MK) ret= 0x%04x\n", key_status);
+		if ( DEBUG ) eprintf("+++ sgx_ra_get_keys (MK) ret= 0x%04x\n", key_status);
 		// Then the SK
 
-		if ( debug ) eprintf("+++ fetching SHA256(SK)\n");
+		if ( DEBUG ) eprintf("+++ fetching SHA256(SK)\n");
 		status= enclave_ra_get_key_hash(eid, &sha_status, &key_status, ra_ctx,
 			SGX_RA_KEY_SK, &skhash);
-		if ( debug ) eprintf("+++ ECALL enclage_ra_get_key_hash (MK) ret= 0x%04x\n",
+		if ( DEBUG ) eprintf("+++ ECALL enclage_ra_get_key_hash (MK) ret= 0x%04x\n",
 			status);
 
-		if ( debug ) eprintf("+++ sgx_ra_get_keys (MK) ret= 0x%04x\n", key_status);
-		if ( verbose ) {
+		if ( DEBUG ) eprintf("+++ sgx_ra_get_keys (MK) ret= 0x%04x\n", key_status);
+		if ( VERBOSE ) {
 			eprintf("SHA256(MK) = ");
 			print_hexstring(stderr, mkhash, sizeof(mkhash));
 			print_hexstring(fplog, mkhash, sizeof(mkhash));
@@ -824,17 +707,6 @@ int file_in_searchpath (const char *file, const char *search, char *fullpath,
 }
 
 #endif
-
-void usage () 
-{
-	fprintf(stderr, "usage: client [ options ] [ host[:port] ]\n\n");
-	fprintf(stderr, "Required:\n");
-	fprintf(stderr, "  -d, --debug              Show debugging information\n");
-	fprintf(stderr, "  -m, --pse-manifest       Include the PSE manifest in the quote\n");
-	fprintf(stderr, "  -v, --verbose            Print decoded RA messages to stderr\n");
-	fprintf(stderr, "\nOne of --spid OR --spid-file is required for generating a quote or doing\nremote attestation.\n");
-	exit(1);
-}
 
 void ocall_print(const char* str) {
     printf("%s\n", str);
