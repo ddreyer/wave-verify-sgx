@@ -552,8 +552,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	/* for now, send the proof contents to the enclave */
-	/* TODO: how to establish initial connection and decide whether to do attestation */
+	/* TODO: for now, send the proof contents to the enclave */
 	while (msgio->server_loop()) {
 		send_proof(msgio);
 	}

@@ -105,8 +105,6 @@ int main (int argc, char *argv[])
 	sgx_enclave_id_t eid= 0;
 	int updated= 0;
 	int sgx_support;
-	uint32_t i;
-	char have_spid= 0;
 
 	/* Create a logfile to capture DEBUG output and actual msg data */
 	fplog = create_logfile("enclave_app.log");
@@ -188,15 +186,9 @@ int do_verify(sgx_enclave_id_t eid)
 {
 	sgx_status_t status, sgxrv;
 	ra_msgproof_t *proof_info;
-	ra_msgkey_t *client_key;
-	uint8_t *encrypted_client_key;
-	uint32_t msg0_extended_epid_group_id = 0;
 	sgx_ra_context_t ra_ctx= 0xdeadbeef;
 	int rv;
 	MsgIO *msgio;
-	size_t msg4sz = 0;
-	int enclaveTrusted = 1; // Not Trusted
-
 
 	try {
 		msgio = new MsgIO(strdup(DEFAULT_SERVER), strdup(DEFAULT_PORT));
