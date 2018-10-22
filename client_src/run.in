@@ -1,13 +1,6 @@
 #! /bin/bash
 
 #----------------------------------------------------------------------------
-# Get our program name
-#----------------------------------------------------------------------------
-
-PROG=`basename $0`
-
-
-#----------------------------------------------------------------------------
 # Environment setup.
 #----------------------------------------------------------------------------
 
@@ -71,11 +64,6 @@ fi
 # Execute
 #----------------------------------------------------------------------------
 
-if [ "$PROG" = "run-enclave-app" ]
-then
-	./enclave_app
-elif [ "$PROG" = "run-client" ]
-then
 	./client \
 		-s $SPID \
 		# -A "$IAS_REPORT_SIGNING_CA_FILE" \
@@ -84,8 +72,3 @@ then
 		$flag_linkable $sp_strict_trust \
                 $sp_production \
 		"$@" 
-else
-	echo "$PROG: unrecognized instance (expected run-client or run-enclave-app)" >&2
-	exit 1
-fi
-

@@ -109,8 +109,8 @@ int main (int argc, char *argv[])
 	char have_spid= 0;
 
 	/* Create a logfile to capture DEBUG output and actual msg data */
-	fplog = create_logfile("client.log");
-	dividerWithText(fplog, "Client Log Timestamp");
+	fplog = create_logfile("enclave_app.log");
+	dividerWithText(fplog, "Enclave App Log Timestamp");
 
 	const time_t timeT = time(NULL);
 	struct tm lt;

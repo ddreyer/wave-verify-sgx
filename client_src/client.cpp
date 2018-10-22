@@ -189,8 +189,8 @@ int main(int argc, char *argv[])
 
 	/* Create a logfile to capture debug output and actual msg data */
 
-	fplog = create_logfile("sp.log");
-	fprintf(fplog, "Server log started\n");
+	fplog = create_logfile("client.log");
+	fprintf(fplog, "Client log started\n");
 
 	/* Config defaults */
 
