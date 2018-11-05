@@ -88,4 +88,3 @@ enclave_app_LDFLAGS= $(AM_LDFLAGS) @OPENSSL_LDFLAGS@ -L$(SGXSSL_LIBDIR)
 
 enclave_app_LDADD=-l$(SGX_URTS_LIB) -lsgx_ukey_exchange -l$(SGX_UAE_SERVICE_LIB) \
 	-lcrypto -l:libsgx_capable.a -lpthread -ldl -lsgx_usgxssl
-

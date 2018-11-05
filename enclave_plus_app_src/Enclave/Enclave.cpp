@@ -34,7 +34,7 @@ sgx_status_t enclave_ra_init(sgx_ec256_public_t key, int b_pse,
 }
 
 /* Enclave message verification */
-sgx_status_t ecall_verify_proof(char *cipher, size_t cipher_size, sgx_ra_context_t ctx) 
+sgx_status_t ecall_verify_proof(char *cipher, size_t cipher_size) 
 {
     ocall_print("Enclave: Inside enclave to verify the proof");
 	/* First, get symmetric key to decrypt */
@@ -68,7 +68,7 @@ sgx_status_t ecall_verify_proof(char *cipher, size_t cipher_size, sgx_ra_context
 	ocall_print("proof decryption succeeded");
 
 	/* verify proof */
-	if (verify((char *) decrypted)) {
+	if (verify((char *) cipher)) {
 		return SGX_ERROR_UNEXPECTED;
 	}
 	ocall_print("verifying proof succeeded");
