@@ -62,7 +62,7 @@ ENCLAVE_KEY=$(ENCLAVE)_private.pem
 ## AM_CPPFLAGS += 
 ## AM_CXXFLAGS +=
 
-AM_CXXFLAGS += -I. -I.. -I$(SGX_SDK)/include/libcxx -Iwave-verify -Iwave-verify/asn1c_files -I$(SGXSSL_INCDIR)
+AM_CXXFLAGS += -I. -I.. -I$(SGX_SDK)/include/libcxx -Iwave-verify -Iwave-verify/asn1c_files -I$(SGXSSL_INCDIR) -fpermissive
 AM_CFLAGS += -I. -I.. -I$(SGX_SDK)/include/libcxx -Iwave-verify -Iwave-verify/asn1c_files
 
 ## Additional files to remove with 'make clean'. This list needs

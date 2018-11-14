@@ -26,10 +26,40 @@ func main() {
 	}
 	encoded := base64.StdEncoding.EncodeToString(block.Bytes)
 	n := len(encoded)
-	fmt.Println(n)
-	// s := string(block.Bytes[:n])
-	cstr := C.CString(encoded)
-	// cstr := C.CBytes(block.Bytes)
-	defer C.free(unsafe.Pointer(cstr))
-	C.init_and_verify(cstr, C.ulong(n))
+	proofDER := C.CString(encoded)
+	defer C.free(unsafe.Pointer(proofDER))
+
+	// pol := serdes.RTreePolicy{
+	// 	Namespace: asn1.NewExternal([]byte("hello")),
+	// 	Statements: []serdes.RTreeStatement{
+	// 		{
+	// 			PermissionSet: asn1.NewExternal([]byte(core.WAVEMQPermissionSet)),
+	// 			Permissions:   []string{core.WAVEMQPublish},
+	// 			Resource:      "temp",
+	// 		},
+	// 	},
+	// }
+	// polBytes, err := asn1.Marshal(pol)
+	// if err != nil {
+	// 	fmt.Printf("error marshaling", err)
+	// }
+	// polDER := C.CString(base64.StdEncoding.EncodeToString(polBytes))
+	// defer C.free(unsafe.Pointer(polDER))
+	// presp, err := am.wave.VerifyProof(ctx, &eapipb.VerifyProofParams{
+	// 	ProofDER: m.ProofDER,
+	// 	Subject:  m.Tbs.SourceEntity,
+	// 	RequiredRTreePolicy: &eapipb.RTreePolicy{
+	// 		Namespace: m.Tbs.Namespace,
+	// 		Statements: []*eapipb.RTreePolicyStatement{
+	// 			{
+	// 				PermissionSet: []byte(WAVEMQPermissionSet),
+	// 				Permissions:   []string{WAVEMQPublish},
+	// 				Resource:      m.Tbs.Uri,
+	// 			},
+	// 		},
+	// 	},
+	// })
+
+	// subject := C.CString(base64.StdEncoding.EncodeToString())
+	C.init_and_verify(proofDER, C.ulong(n), nil, 0, nil, 0)
 }

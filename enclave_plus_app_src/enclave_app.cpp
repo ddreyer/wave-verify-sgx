@@ -52,7 +52,8 @@ using namespace std;
 # define ENCLAVE_NAME "Enclave.signed.so"
 #endif
 
-int init_and_verify(char *proof_der, size_t size) {
+int init_and_verify(char *proof_cipher, size_t proof_cipher_size, char *subject, 
+	size_t subj_size, char *policyDER, size_t policyDER_size) {
 	sgx_launch_token_t token= { 0 };
 	sgx_status_t status, sgxrv;
 	sgx_enclave_id_t eid= 0;
@@ -128,7 +129,8 @@ int init_and_verify(char *proof_der, size_t size) {
 
 	/* for now, just do proof verification with no attestation */
 	/* TODO: how to establish initial connection */
-	status = ecall_verify_proof(eid, &sgxrv, proof_der, size);
+	status = ecall_verify_proof(eid, &sgxrv, proof_cipher, proof_cipher_size, subject, 
+		subj_size, policyDER, policyDER_size);
 
 	if ( sgxrv != SGX_SUCCESS ) {
 		fprintf(stderr, "ecall_verify_proof: %08x\n", sgxrv);
@@ -140,130 +142,133 @@ int init_and_verify(char *proof_der, size_t size) {
 	close_logfile(fplog);
 }
 
-int main ()
-{
-	sgx_launch_token_t token= { 0 };
-	sgx_status_t status;
-	sgx_enclave_id_t eid= 0;
-	int updated= 0;
-	int sgx_support;
-
-	/* Create a logfile to capture DEBUG output and actual msg data */
-	fplog = create_logfile("enclave_app.log");
-	dividerWithText(fplog, "Enclave App Log Timestamp");
-
-	const time_t timeT = time(NULL);
-	struct tm lt;
-
-#ifndef _WIN32
-	lt = *localtime(&timeT);
-#else
-
-	localtime_s(&lt, &timeT);
-#endif
-	fprintf(fplog, "%4d-%02d-%02d %02d:%02d:%02d\n", 
-		lt.tm_year + 1900, 
-		lt.tm_mon + 1, 
-		lt.tm_mday,  
-		lt.tm_hour, 
-		lt.tm_min, 
-		lt.tm_sec);
-	divider(fplog);
-
-	/* Can we run SGX? */
-#ifndef SGX_HW_SIM
-	sgx_support = get_sgx_support();
-	if (sgx_support & SGX_SUPPORT_NO) {
-		fprintf(stderr, "This system does not support Intel SGX.\n");
-		return 1;
-	} else {
-		if (sgx_support & SGX_SUPPORT_ENABLE_REQUIRED) {
-			fprintf(stderr, "Intel SGX is supported on this system but disabled in the BIOS\n");
-			return 1;
-		}
-		else if (sgx_support & SGX_SUPPORT_REBOOT_REQUIRED) {
-			fprintf(stderr, "Intel SGX will be enabled after the next reboot\n");
-			return 1;
-		}
-		else if (!(sgx_support & SGX_SUPPORT_ENABLED)) {
-			fprintf(stderr, "Intel SGX is supported on this sytem but not available for use\n");
-			fprintf(stderr, "The system may lock BIOS support, or the Platform Software is not available\n");
-			return 1;
-		}
-	} 
-#endif
-
-	/* Launch the enclave */
-
-#ifdef _WIN32
-	status = sgx_create_enclave(ENCLAVE_NAME, SGX_DEBUG_FLAG,
-		&token, &updated, &eid, 0);
-	if (status != SGX_SUCCESS) {
-		fprintf(stderr, "sgx_create_enclave: %s: %08x\n",
-			ENCLAVE_NAME, status);
-		return 1;
-	}
-#else
-	status = sgx_create_enclave_search(ENCLAVE_NAME,
-		SGX_DEBUG_FLAG, &token, &updated, &eid, 0);
-	if ( status != SGX_SUCCESS ) {
-		fprintf(stderr, "sgx_create_enclave: %s: %08x\n",
-			ENCLAVE_NAME, status);
-		if ( status == SGX_ERROR_ENCLAVE_FILE_ACCESS ) 
-			fprintf(stderr, "Did you forget to set LD_LIBRARY_PATH?\n");
-		return 1;
-	}
-#endif
-
-	/* for now, just do proof verification with no attestation */
-	/* TODO: how to establish initial connection */
-	do_verify(eid);
-	// do_attestation(eid);
-	return 0;
-
-	close_logfile(fplog);
-}
-
-int do_verify(sgx_enclave_id_t eid)
-{
-	sgx_status_t status, sgxrv;
-	ra_msgproof_t *proof_info;
-	sgx_ra_context_t ra_ctx= 0xdeadbeef;
-	int rv;
-	MsgIO *msgio;
-
-	try {
-		msgio = new MsgIO(strdup(DEFAULT_SERVER), strdup(DEFAULT_PORT));
-	}
-	catch(...) {
-		exit(1);
-	}
-
-	/* read encrypted proof contents */
-	rv= msgio->read((void **) &proof_info, NULL);
-	printf("Enclave app: Retrieved proof from client\n");
-
-	if ( rv == 0 ) {
-        enclave_ra_close(eid, &sgxrv, ra_ctx);
-		fprintf(stderr, "protocol error reading proof from client\n");
-		exit(1);
-	} else if ( rv == -1 ) {
-        enclave_ra_close(eid, &sgxrv, ra_ctx);
-		fprintf(stderr, "system error occurred while reading proof from client\n");
-		exit(1);
-	}
-
-	/* pass cipher into enclave to decrypt and verify */
-    status = ecall_verify_proof(eid, &sgxrv, proof_info->proof_contents,
-        proof_info->size);
-
-	if ( sgxrv != SGX_SUCCESS ) {
-		fprintf(stderr, "ecall_verify_proof: %08x\n", sgxrv);
-		return 1;
-	}
-	enclave_ra_close(eid, &sgxrv, ra_ctx);
+int main() {
 	return 0;
 }
+// int main ()
+// {
+// 	sgx_launch_token_t token= { 0 };
+// 	sgx_status_t status;
+// 	sgx_enclave_id_t eid= 0;
+// 	int updated= 0;
+// 	int sgx_support;
+
+// 	/* Create a logfile to capture DEBUG output and actual msg data */
+// 	fplog = create_logfile("enclave_app.log");
+// 	dividerWithText(fplog, "Enclave App Log Timestamp");
+
+// 	const time_t timeT = time(NULL);
+// 	struct tm lt;
+
+// #ifndef _WIN32
+// 	lt = *localtime(&timeT);
+// #else
+
+// 	localtime_s(&lt, &timeT);
+// #endif
+// 	fprintf(fplog, "%4d-%02d-%02d %02d:%02d:%02d\n", 
+// 		lt.tm_year + 1900, 
+// 		lt.tm_mon + 1, 
+// 		lt.tm_mday,  
+// 		lt.tm_hour, 
+// 		lt.tm_min, 
+// 		lt.tm_sec);
+// 	divider(fplog);
+
+// 	/* Can we run SGX? */
+// #ifndef SGX_HW_SIM
+// 	sgx_support = get_sgx_support();
+// 	if (sgx_support & SGX_SUPPORT_NO) {
+// 		fprintf(stderr, "This system does not support Intel SGX.\n");
+// 		return 1;
+// 	} else {
+// 		if (sgx_support & SGX_SUPPORT_ENABLE_REQUIRED) {
+// 			fprintf(stderr, "Intel SGX is supported on this system but disabled in the BIOS\n");
+// 			return 1;
+// 		}
+// 		else if (sgx_support & SGX_SUPPORT_REBOOT_REQUIRED) {
+// 			fprintf(stderr, "Intel SGX will be enabled after the next reboot\n");
+// 			return 1;
+// 		}
+// 		else if (!(sgx_support & SGX_SUPPORT_ENABLED)) {
+// 			fprintf(stderr, "Intel SGX is supported on this sytem but not available for use\n");
+// 			fprintf(stderr, "The system may lock BIOS support, or the Platform Software is not available\n");
+// 			return 1;
+// 		}
+// 	} 
+// #endif
+
+// 	/* Launch the enclave */
+
+// #ifdef _WIN32
+// 	status = sgx_create_enclave(ENCLAVE_NAME, SGX_DEBUG_FLAG,
+// 		&token, &updated, &eid, 0);
+// 	if (status != SGX_SUCCESS) {
+// 		fprintf(stderr, "sgx_create_enclave: %s: %08x\n",
+// 			ENCLAVE_NAME, status);
+// 		return 1;
+// 	}
+// #else
+// 	status = sgx_create_enclave_search(ENCLAVE_NAME,
+// 		SGX_DEBUG_FLAG, &token, &updated, &eid, 0);
+// 	if ( status != SGX_SUCCESS ) {
+// 		fprintf(stderr, "sgx_create_enclave: %s: %08x\n",
+// 			ENCLAVE_NAME, status);
+// 		if ( status == SGX_ERROR_ENCLAVE_FILE_ACCESS ) 
+// 			fprintf(stderr, "Did you forget to set LD_LIBRARY_PATH?\n");
+// 		return 1;
+// 	}
+// #endif
+
+// 	/* for now, just do proof verification with no attestation */
+// 	/* TODO: how to establish initial connection */
+// 	do_verify(eid);
+// 	// do_attestation(eid);
+// 	return 0;
+
+// 	close_logfile(fplog);
+// }
+
+// int do_verify(sgx_enclave_id_t eid)
+// {
+// 	sgx_status_t status, sgxrv;
+// 	ra_msgproof_t *proof_info;
+// 	sgx_ra_context_t ra_ctx= 0xdeadbeef;
+// 	int rv;
+// 	MsgIO *msgio;
+
+// 	try {
+// 		msgio = new MsgIO(strdup(DEFAULT_SERVER), strdup(DEFAULT_PORT));
+// 	}
+// 	catch(...) {
+// 		exit(1);
+// 	}
+
+// 	/* read encrypted proof contents */
+// 	rv= msgio->read((void **) &proof_info, NULL);
+// 	printf("Enclave app: Retrieved proof from client\n");
+
+// 	if ( rv == 0 ) {
+//         enclave_ra_close(eid, &sgxrv, ra_ctx);
+// 		fprintf(stderr, "protocol error reading proof from client\n");
+// 		exit(1);
+// 	} else if ( rv == -1 ) {
+//         enclave_ra_close(eid, &sgxrv, ra_ctx);
+// 		fprintf(stderr, "system error occurred while reading proof from client\n");
+// 		exit(1);
+// 	}
+
+// 	/* pass cipher into enclave to decrypt and verify */
+//     status = ecall_verify_proof(eid, &sgxrv, proof_info->proof_contents,
+//         proof_info->size);
+
+// 	if ( sgxrv != SGX_SUCCESS ) {
+// 		fprintf(stderr, "ecall_verify_proof: %08x\n", sgxrv);
+// 		return 1;
+// 	}
+// 	enclave_ra_close(eid, &sgxrv, ra_ctx);
+// 	return 0;
+// }
 
 int do_attestation (sgx_enclave_id_t eid)
 {
