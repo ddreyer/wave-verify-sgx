@@ -52,11 +52,11 @@ using namespace std;
 # define ENCLAVE_NAME "Enclave.signed.so"
 #endif
 
-int init_and_verify(char *proof_cipher, size_t proof_cipher_size, char *subject, 
-	size_t subj_size, char *policyDER, size_t policyDER_size) {
+sgx_enclave_id_t eid = 0;
+
+int init_enclave() {
 	sgx_launch_token_t token= { 0 };
 	sgx_status_t status, sgxrv;
-	sgx_enclave_id_t eid= 0;
 	int updated= 0;
 	int sgx_support;
 	
@@ -126,11 +126,14 @@ int init_and_verify(char *proof_cipher, size_t proof_cipher_size, char *subject,
 		return 1;
 	}
 #endif
+}
 
-	/* for now, just do proof verification with no attestation */
-	/* TODO: how to establish initial connection */
+int verify(char *proof_cipher, size_t proof_cipher_size, char *subject, 
+	size_t subj_size, char *policyDER, size_t policyDER_size) {
+	sgx_status_t status, sgxrv;
+	printf("in verify\n");
 	status = ecall_verify_proof(eid, &sgxrv, proof_cipher, proof_cipher_size, subject, 
-		subj_size, policyDER, policyDER_size);
+	subj_size, policyDER, policyDER_size);
 
 	if ( sgxrv != SGX_SUCCESS ) {
 		fprintf(stderr, "ecall_verify_proof: %08x\n", sgxrv);
@@ -138,8 +141,6 @@ int init_and_verify(char *proof_cipher, size_t proof_cipher_size, char *subject,
 	}
 	// enclave_ra_close(eid, &sgxrv, ra_ctx);
 	return 0;
-
-	close_logfile(fplog);
 }
 
 int main() {

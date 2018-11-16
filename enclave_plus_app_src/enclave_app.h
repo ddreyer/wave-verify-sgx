@@ -39,8 +39,10 @@ extern "C" {
         sgx_misc_attribute_t *attr
     );
 
-    int init_and_verify(char *proof_cipher, size_t proof_cipher_size, char *subject, 
-        size_t subj_size, char *policyDER, size_t policyDER_size);
+    int verify(char *proof_cipher, size_t proof_cipher_size, char *subject, 
+	    size_t subj_size, char *policyDER, size_t policyDER_size);
+
+    int init_enclave();
 
     int do_verify(sgx_enclave_id_t eid);
 
