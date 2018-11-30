@@ -337,7 +337,7 @@ int main(int argc, char *argv[])
 			break;
 		case 't':
 			strncpy((char *) config.cert_type, optarg, 4);
-			if ( debug ) eprintf("+++ cert type set to %s\n",
+			if ( DEBUG ) eprintf("+++ cert type set to %s\n",
 				config.cert_type);
 			break;
 		case 'v':
@@ -378,62 +378,62 @@ int main(int argc, char *argv[])
 
 	/* Use the default CA bundle unless one is provided */
 
-	// if ( config.ca_bundle == NULL ) {
-	// 	config.ca_bundle= strdup(DEFAULT_CA_BUNDLE);
-	// 	if ( config.ca_bundle == NULL ) {
-	// 		perror("strdup");
-	// 		return 1;
-	// 	}
-	// 	if ( debug ) eprintf("+++ Using default CA bundle %s\n",
-	// 		config.ca_bundle);
-	// }
+	if ( config.ca_bundle == NULL ) {
+		config.ca_bundle= strdup(DEFAULT_CA_BUNDLE);
+		if ( config.ca_bundle == NULL ) {
+			perror("strdup");
+			return 1;
+		}
+		if ( DEBUG ) eprintf("+++ Using default CA bundle %s\n",
+			config.ca_bundle);
+	}
 
-	// /*
-	//  * Use the hardcoded default key unless one is provided on the
-	//  * command line. Most real-world services would hardcode the
-	//  * key since the public half is also hardcoded into the enclave.
-	//  * TODO: figure this out
-	//  */
+	/*
+	 * Use the hardcoded default key unless one is provided on the
+	 * command line. Most real-world services would hardcode the
+	 * key since the public half is also hardcoded into the enclave.
+	 * TODO: figure this out
+	 */
 
-	// if (config.service_private_key == NULL) {
-	// 	if (debug) {
-	// 		eprintf("Using default private key\n");
-	// 	}
-	// 	config.service_private_key = key_private_from_bytes(def_service_private_key);
-	// 	if (config.service_private_key == NULL) {
-	// 		crypto_perror("key_private_from_bytes");
-	// 		return 1;
-	// 	}
+	if (config.service_private_key == NULL) {
+		if (DEBUG) {
+			eprintf("Using default private key\n");
+		}
+		config.service_private_key = key_private_from_bytes(def_service_private_key);
+		if (config.service_private_key == NULL) {
+			crypto_perror("key_private_from_bytes");
+			return 1;
+		}
 
-	// }
+	}
 
-	// if (debug) {
-	// 	eprintf("+++ using private key:\n");
-	// 	PEM_write_PrivateKey(stderr, config.service_private_key, NULL,
-	// 		NULL, 0, 0, NULL);
-	// 	PEM_write_PrivateKey(fplog, config.service_private_key, NULL,
-	// 		NULL, 0, 0, NULL);
-	// }
+	if (DEBUG) {
+		eprintf("+++ using private key:\n");
+		PEM_write_PrivateKey(stderr, config.service_private_key, NULL,
+			NULL, 0, 0, NULL);
+		PEM_write_PrivateKey(fplog, config.service_private_key, NULL,
+			NULL, 0, 0, NULL);
+	}
 
 	/* TODO: fix this */
-	// if (!flag_spid) {
-	// 	eprintf("--spid or --spid-file is required\n");
-	// 	flag_usage = 1;
-	// }
+	if (!flag_spid) {
+		eprintf("--spid or --spid-file is required\n");
+		flag_usage = 1;
+	}
 
-	// if (!flag_cert) {
-	// 	eprintf("--ias-cert-file is required\n");
-	// 	flag_usage = 1;
-	// }
+	if (!flag_cert) {
+		eprintf("--ias-cert-file is required\n");
+		flag_usage = 1;
+	}
 
-	// if (!flag_ca) {
-	// 	eprintf("--ias-signing-cafile is required\n");
-	// 	flag_usage = 1;
-	// }
+	if (!flag_ca) {
+		eprintf("--ias-signing-cafile is required\n");
+		flag_usage = 1;
+	}
 
 	if (flag_usage) usage();
 
-	if (verbose) eprintf("Using cert file %s\n", config.cert_file);
+	if (VERBOSE) eprintf("Using cert file %s\n", config.cert_file);
 
 	/* Initialize out support libraries */
 
@@ -441,105 +441,105 @@ int main(int argc, char *argv[])
 
 	/* Initialize our IAS request object */
 
-// 	try {
-// 		ias = new IAS_Connection(
-// 			(flag_prod) ? IAS_SERVER_PRODUCTION : IAS_SERVER_DEVELOPMENT,
-// 			0
-// 		);
-// 	}
-// 	catch (...) {
-// 		oops = 1;
-// 		eprintf("exception while creating IAS request object\n");
-// 		return 1;
-// 	}
+	try {
+		ias = new IAS_Connection(
+			(flag_prod) ? IAS_SERVER_PRODUCTION : IAS_SERVER_DEVELOPMENT,
+			0
+		);
+	}
+	catch (...) {
+		oops = 1;
+		eprintf("exception while creating IAS request object\n");
+		return 1;
+	}
 
-// 	ias->client_cert(config.cert_file, (char *)config.cert_type);
-// 	if ( config.cert_passwd_file != NULL ) {
-// 		char *passwd;
-// 		char *keyfile;
-// 		off_t sz;
+	ias->client_cert(config.cert_file, (char *)config.cert_type);
+	if ( config.cert_passwd_file != NULL ) {
+		char *passwd;
+		char *keyfile;
+		off_t sz;
 
-// 		if ( ! from_file(NULL, config.cert_passwd_file, &sz) ) {
-// 			eprintf("can't load password from %s\n", 
-// 				config.cert_passwd_file);
-// 			return 1;
-// 		}
+		if ( ! from_file(NULL, config.cert_passwd_file, &sz) ) {
+			eprintf("can't load password from %s\n", 
+				config.cert_passwd_file);
+			return 1;
+		}
 
-// 		if ( sz > 0 ) {
-// 			char *cp;
+		if ( sz > 0 ) {
+			char *cp;
 
-// 			try {
-// 				passwd= new char[sz+1];
-// 			}
-// 			catch (...) {
-// 				eprintf("out of memory\n");
-// 				return 1;
-// 			}
+			try {
+				passwd= new char[sz+1];
+			}
+			catch (...) {
+				eprintf("out of memory\n");
+				return 1;
+			}
 
-// 			if ( ! from_file((unsigned char *) passwd, config.cert_passwd_file,
-// 			 	&sz) ) {
+			if ( ! from_file((unsigned char *) passwd, config.cert_passwd_file,
+			 	&sz) ) {
 
-// 				eprintf("can't load password from %s\n", 
-// 					config.cert_passwd_file);
-// 				return 1;
-// 			}
-// 			passwd[sz]= 0;
+				eprintf("can't load password from %s\n", 
+					config.cert_passwd_file);
+				return 1;
+			}
+			passwd[sz]= 0;
 
-// 			// Remove trailing newline or linefeed.
+			// Remove trailing newline or linefeed.
 
-// 			cp= strchr(passwd, '\n');
-// 			if ( cp != NULL ) *cp= 0;
-// 			cp= strchr(passwd, '\r');
-// 			if ( cp != NULL ) *cp= 0;
+			cp= strchr(passwd, '\n');
+			if ( cp != NULL ) *cp= 0;
+			cp= strchr(passwd, '\r');
+			if ( cp != NULL ) *cp= 0;
 
-// 			// If a key file isn't specified, assume it's bundled with
-// 			// the certificate.
+			// If a key file isn't specified, assume it's bundled with
+			// the certificate.
 
-// 			keyfile= (config.cert_key_file == NULL) ? config.cert_file :
-// 				config.cert_key_file;
-// 			if ( debug ) eprintf("+++ using cert key file %s\n", keyfile);
-// 			ias->client_key(keyfile, passwd);
+			keyfile= (config.cert_key_file == NULL) ? config.cert_file :
+				config.cert_key_file;
+			if ( DEBUG ) eprintf("+++ using cert key file %s\n", keyfile);
+			ias->client_key(keyfile, passwd);
 
-// #ifdef _WIN32
-// 			SecureZeroMemory(passwd, sz);
-// #else
-// 			// -fno-builtin-memset prevents optimizing this away 
-// 			memset(passwd, 0, sz);
-// #endif
-// 		}
-// 	} else if ( config.cert_key_file != NULL ) {
-// 		// We have a key file but no password.
-// 		ias->client_key(config.cert_key_file, NULL);
-// 	}
+#ifdef _WIN32
+			SecureZeroMemory(passwd, sz);
+#else
+			// -fno-builtin-memset prevents optimizing this away 
+			memset(passwd, 0, sz);
+#endif
+		}
+	} else if ( config.cert_key_file != NULL ) {
+		// We have a key file but no password.
+		ias->client_key(config.cert_key_file, NULL);
+	}
 
-// 	if ( flag_noproxy ) ias->proxy_mode(IAS_PROXY_NONE);
-// 	else if (config.proxy_server != NULL) {
-// 		ias->proxy_mode(IAS_PROXY_FORCE);
-// 		ias->proxy(config.proxy_server, config.proxy_port);
-// 	}
+	if ( flag_noproxy ) ias->proxy_mode(IAS_PROXY_NONE);
+	else if (config.proxy_server != NULL) {
+		ias->proxy_mode(IAS_PROXY_FORCE);
+		ias->proxy(config.proxy_server, config.proxy_port);
+	}
 
-// 	if ( config.user_agent != NULL ) {
-// 		if ( ! ias->agent(config.user_agent) ) {
-// 			eprintf("%s: unknown user agent\n", config.user_agent);
-// 			return 0;
-// 		}
-// 	}
+	if ( config.user_agent != NULL ) {
+		if ( ! ias->agent(config.user_agent) ) {
+			eprintf("%s: unknown user agent\n", config.user_agent);
+			return 0;
+		}
+	}
 
-// 	/* 
-// 	 * Set the cert store for this connection. This is used for verifying 
-// 	 * the IAS signing certificate, not the TLS connection with IAS (the 
-// 	 * latter is handled using config.ca_bundle).
-// 	 */
-// 	ias->cert_store(config.store);
+	/* 
+	 * Set the cert store for this connection. This is used for verifying 
+	 * the IAS signing certificate, not the TLS connection with IAS (the 
+	 * latter is handled using config.ca_bundle).
+	 */
+	ias->cert_store(config.store);
 
-// 	/*
-// 	 * Set the CA bundle for verifying the IAS server certificate used
-// 	 * for the TLS session. If this isn't set, then the user agent
-// 	 * will fall back to it's default.
-// 	 */
-// 	if ( strlen(config.ca_bundle) ) ias->ca_bundle(config.ca_bundle);
+	/*
+	 * Set the CA bundle for verifying the IAS server certificate used
+	 * for the TLS session. If this isn't set, then the user agent
+	 * will fall back to it's default.
+	 */
+	if ( strlen(config.ca_bundle) ) ias->ca_bundle(config.ca_bundle);
 
-// 	/* Get our message IO object. */
+	/* Get our message IO object. */
 	
 	if ( flag_stdio ) {
 		msgio= new MsgIO();
@@ -553,9 +553,9 @@ int main(int argc, char *argv[])
 	}
 
 	/* TODO: for now, send the proof contents to the enclave */
-	while (msgio->server_loop()) {
-		send_proof(msgio);
-	}
+	// while (msgio->server_loop()) {
+	// 	send_proof(msgio);
+	// }
 #ifndef _WIN32
 	/* 
 	 * Install some rudimentary signal handlers. We just want to make 
@@ -753,7 +753,7 @@ int process_msg3 (MsgIO *msgio, IAS_Connection *ias, sgx_ra_msg1_t *msg1,
 		eprintf("protocol error reading msg3\n");
 		return 0;
 	}
-	if ( debug ) {
+	if ( DEBUG ) {
 		eprintf("+++ read %lu bytes\n", sz);
 	}
 
@@ -764,13 +764,13 @@ int process_msg3 (MsgIO *msgio, IAS_Connection *ias, sgx_ra_msg1_t *msg1,
 	 * Total message size is sz/2 since the income message is in base16.
 	 */
 	quote_sz = (uint32_t)((sz / 2) - sizeof(sgx_ra_msg3_t));
-	if ( debug ) {
+	if ( DEBUG ) {
 		eprintf("+++ quote_sz= %lu bytes\n", quote_sz);
 	}
 
 	/* Make sure Ga matches msg1 */
 
-	if ( debug ) {
+	if ( DEBUG ) {
 		eprintf("+++ Verifying msg3.g_a matches msg1.g_a\n");
 		eprintf("msg1.g_a.gx = %s\n",
 			hexstring(msg3->g_a.gx, sizeof(msg1->g_a.gx)));
@@ -791,7 +791,7 @@ int process_msg3 (MsgIO *msgio, IAS_Connection *ias, sgx_ra_msg1_t *msg1,
 	cmac128(session->smk, (unsigned char *) &msg3->g_a,
 		sizeof(sgx_ra_msg3_t)-sizeof(sgx_mac_t)+quote_sz,
 		(unsigned char *) vrfymac);
-	if ( debug ) {
+	if ( DEBUG ) {
 		eprintf("+++ Validating MACsmk(M)\n");
 		eprintf("msg3.mac   = %s\n", hexstring(msg3->mac, sizeof(sgx_mac_t)));
 		eprintf("calculated = %s\n", hexstring(vrfymac, sizeof(sgx_mac_t)));
@@ -806,7 +806,7 @@ int process_msg3 (MsgIO *msgio, IAS_Connection *ias, sgx_ra_msg1_t *msg1,
 	b64quote= base64_encode((char *) &msg3->quote, quote_sz);
 	q= (sgx_quote_t *) msg3->quote;
 
-	if ( verbose ) {
+	if ( VERBOSE ) {
 
 		edividerWithText("Msg3 Details (from Client)");
 		eprintf("msg3.mac                 = %s\n",
@@ -848,7 +848,7 @@ int process_msg3 (MsgIO *msgio, IAS_Connection *ias, sgx_ra_msg1_t *msg1,
 
 	/* Verify that the EPID group ID in the quote matches the one from msg1 */
 
-	if ( debug ) {
+	if ( DEBUG ) {
 		eprintf("+++ Validating quote's epid_group_id against msg1\n");
 		eprintf("msg1.egid = %s\n", 
 			hexstring(msg1->gid, sizeof(sgx_epid_group_id_t)));
@@ -896,9 +896,9 @@ int process_msg3 (MsgIO *msgio, IAS_Connection *ias, sgx_ra_msg1_t *msg1,
 
 		sha256_digest(msg_rdata, 144, vfy_rdata);
 
-		if ( verbose ) {
+		if ( VERBOSE ) {
 			edividerWithText("Enclave Report Verification");
-			if ( debug ) {
+			if ( DEBUG ) {
 				eprintf("VK                 = %s\n", 
 					hexstring(session->vk, 16));
 			}
@@ -935,7 +935,7 @@ int process_msg3 (MsgIO *msgio, IAS_Connection *ias, sgx_ra_msg1_t *msg1,
 			eprintf("MRENCLAVE values don't match\n");
 			return 0;
 		}
-		if ( verbose ) {
+		if ( VERBOSE ) {
 			edivider();
 
 			// The enclave report is valid so we can trust the report
@@ -982,7 +982,7 @@ int process_msg3 (MsgIO *msgio, IAS_Connection *ias, sgx_ra_msg1_t *msg1,
 		if ( msg4->status == Trusted ) {
 			unsigned char hashmk[32], hashsk[32];
 
-			if ( debug ) eprintf("+++ Deriving the MK and SK\n");
+			if ( DEBUG ) eprintf("+++ Deriving the MK and SK\n");
 			cmac128(session->kdk, (unsigned char *)("\x01MK\x00\x80\x00"),
 				6, session->mk);
 			cmac128(session->kdk, (unsigned char *)("\x01SK\x00\x80\x00"),
@@ -991,8 +991,8 @@ int process_msg3 (MsgIO *msgio, IAS_Connection *ias, sgx_ra_msg1_t *msg1,
 			sha256_digest(session->mk, 16, hashmk);
 			sha256_digest(session->sk, 16, hashsk);
 
-			if ( verbose ) {
-				if ( debug ) {
+			if ( VERBOSE ) {
+				if ( DEBUG ) {
 					eprintf("MK         = %s\n", hexstring(session->mk, 16));
 					eprintf("SK         = %s\n", hexstring(session->sk, 16));
 				}
@@ -1047,7 +1047,7 @@ int process_msg01 (MsgIO *msgio, IAS_Connection *ias, sgx_ra_msg1_t *msg1,
 		return 0;
 	}
 
-	if ( verbose ) {
+	if ( VERBOSE ) {
 		edividerWithText("Msg0 Details (from Client)");
 		eprintf("msg0.extended_epid_group_id = %u\n",
 			 msg01->msg0_extended_epid_group_id);
@@ -1069,7 +1069,7 @@ int process_msg01 (MsgIO *msgio, IAS_Connection *ias, sgx_ra_msg1_t *msg1,
 	// Pass msg1 back to the pointer in the caller func
 	memcpy(msg1, &msg01->msg1, sizeof(sgx_ra_msg1_t));
 
-	if ( verbose ) {
+	if ( VERBOSE ) {
 		edividerWithText("Msg1 Details (from Client)");
 		eprintf("msg1.g_a.gx = %s\n",
 			hexstring(&msg1->g_a.gx, sizeof(msg1->g_a.gx)));
@@ -1082,7 +1082,7 @@ int process_msg01 (MsgIO *msgio, IAS_Connection *ias, sgx_ra_msg1_t *msg1,
 
 	/* Generate our session key */
 
-	if ( debug ) eprintf("+++ generating session key Gb\n");
+	if ( DEBUG ) eprintf("+++ generating session key Gb\n");
 
 	Gb= key_generate();
 	if ( Gb == NULL ) {
@@ -1097,7 +1097,7 @@ int process_msg01 (MsgIO *msgio, IAS_Connection *ias, sgx_ra_msg1_t *msg1,
 	 * prevent trivial inspection.
 	 */
 
-	if ( debug ) eprintf("+++ deriving KDK\n");
+	if ( DEBUG ) eprintf("+++ deriving KDK\n");
 
 	if ( ! derive_kdk(Gb, session->kdk, msg1->g_a, config) ) {
 		eprintf("Could not derive the KDK\n");
@@ -1105,19 +1105,19 @@ int process_msg01 (MsgIO *msgio, IAS_Connection *ias, sgx_ra_msg1_t *msg1,
 		return 0;
 	}
 
-	if ( debug ) eprintf("+++ KDK = %s\n", hexstring(session->kdk, 16));
+	if ( DEBUG ) eprintf("+++ KDK = %s\n", hexstring(session->kdk, 16));
 
 	/*
  	 * Derive the SMK from the KDK 
 	 * SMK = AES_CMAC(KDK, 0x01 || "SMK" || 0x00 || 0x80 || 0x00) 
 	 */
 
-	if ( debug ) eprintf("+++ deriving SMK\n");
+	if ( DEBUG ) eprintf("+++ deriving SMK\n");
 
 	cmac128(session->kdk, (unsigned char *)("\x01SMK\x00\x80\x00"), 7,
 		session->smk);
 
-	if ( debug ) eprintf("+++ SMK = %s\n", hexstring(session->smk, 16));
+	if ( DEBUG ) eprintf("+++ SMK = %s\n", hexstring(session->smk, 16));
 
 	/*
 	 * Build message 2
@@ -1181,13 +1181,13 @@ int process_msg01 (MsgIO *msgio, IAS_Connection *ias, sgx_ra_msg1_t *msg1,
 	memcpy(&gb_ga[64], &msg1->g_a, 64);
 	memcpy(session->g_a, &msg1->g_a, 64);
 
-	if ( debug ) eprintf("+++ GbGa = %s\n", hexstring(gb_ga, 128));
+	if ( DEBUG ) eprintf("+++ GbGa = %s\n", hexstring(gb_ga, 128));
 
 	ecdsa_sign(gb_ga, 128, config->service_private_key, r, s, digest);
 	reverse_bytes(&msg2->sign_gb_ga.x, r, 32);
 	reverse_bytes(&msg2->sign_gb_ga.y, s, 32);
 
-	if ( debug ) {
+	if ( DEBUG ) {
 		eprintf("+++ sha256(GbGa) = %s\n", hexstring(digest, 32));
 		eprintf("+++ r = %s\n", hexstring(r, 32));
 		eprintf("+++ s = %s\n", hexstring(s, 32));
@@ -1198,7 +1198,7 @@ int process_msg01 (MsgIO *msgio, IAS_Connection *ias, sgx_ra_msg1_t *msg1,
 	cmac128(session->smk, (unsigned char *) msg2, 148,
 		(unsigned char *) &msg2->mac);
 
-	if ( verbose ) {
+	if ( VERBOSE ) {
 		edividerWithText("Msg2 Details");
 		eprintf("msg2.g_b.gx      = %s\n",
 			hexstring(&msg2->g_b.gx, sizeof(msg2->g_b.gx)));
@@ -1255,11 +1255,11 @@ int derive_kdk(EVP_PKEY *Gb, unsigned char kdk[16], sgx_ec256_public_t g_a,
 	/* We need it in little endian order, so reverse the bytes. */
 	/* We'll do this in-place. */
 
-	if ( debug ) eprintf("+++ shared secret= %s\n", hexstring(Gab_x, slen));
+	if ( DEBUG ) eprintf("+++ shared secret= %s\n", hexstring(Gab_x, slen));
 
 	reverse_bytes(Gab_x, Gab_x, slen);
 
-	if ( debug ) eprintf("+++ reversed     = %s\n", hexstring(Gab_x, slen));
+	if ( DEBUG ) eprintf("+++ reversed     = %s\n", hexstring(Gab_x, slen));
 
 	/* Now hash that to get our KDK (Key Definition Key) */
 
@@ -1328,7 +1328,7 @@ int get_attestation_report(IAS_Connection *ias, int version,
 	if ( status == IAS_OK ) {
 		JSON reportObj = JSON::Load(content);
 
-		if ( verbose ) {
+		if ( VERBOSE ) {
 			edividerWithText("Report Body");
 			eprintf("%s\n", content.c_str());
 			edivider();
@@ -1343,7 +1343,7 @@ int get_attestation_report(IAS_Connection *ias, int version,
 			}
 		}
 
-		if ( verbose ) {
+		if ( VERBOSE ) {
 			edividerWithText("IAS Report - JSON - Required Fields");
 			if ( version >= 3 ) {
 				eprintf("version               = %d\n",
@@ -1384,7 +1384,7 @@ int get_attestation_report(IAS_Connection *ias, int version,
 
 	if ( reportObj.hasKey("version") ) {
 		unsigned int rversion= (unsigned int) reportObj["version"].ToInt();
-		if ( verbose )
+		if ( VERBOSE )
 			eprintf("+++ Verifying report version against API version\n");
 		if ( version != rversion ) {
 			eprintf("Report version %u does not match API version %u\n",
@@ -1420,28 +1420,28 @@ int get_attestation_report(IAS_Connection *ias, int version,
 
 	memset(msg4, 0, sizeof(ra_msg4_t));
 
-	if ( verbose ) edividerWithText("ISV Enclave Trust Status");
+	if ( VERBOSE ) edividerWithText("ISV Enclave Trust Status");
 
 	if ( !(reportObj["isvEnclaveQuoteStatus"].ToString().compare("OK"))) {
 		msg4->status = Trusted;
-		if ( verbose ) eprintf("Enclave TRUSTED\n");
+		if ( VERBOSE ) eprintf("Enclave TRUSTED\n");
 	} else if ( !(reportObj["isvEnclaveQuoteStatus"].ToString().compare("CONFIGURATION_NEEDED"))) {
 		if ( strict_trust ) {
 			msg4->status = NotTrusted_ItsComplicated;
-			if ( verbose ) eprintf("Enclave NOT TRUSTED and COMPLICATED - Reason: %s\n",
+			if ( VERBOSE ) eprintf("Enclave NOT TRUSTED and COMPLICATED - Reason: %s\n",
 				reportObj["isvEnclaveQuoteStatus"].ToString().c_str());
 		} else {
-			if ( verbose ) eprintf("Enclave TRUSTED and COMPLICATED - Reason: %s\n",
+			if ( VERBOSE ) eprintf("Enclave TRUSTED and COMPLICATED - Reason: %s\n",
 				reportObj["isvEnclaveQuoteStatus"].ToString().c_str());
 			msg4->status = Trusted_ItsComplicated;
 		}
 	} else if ( !(reportObj["isvEnclaveQuoteStatus"].ToString().compare("GROUP_OUT_OF_DATE"))) {
 		msg4->status = NotTrusted_ItsComplicated;
-		if ( verbose ) eprintf("Enclave NOT TRUSTED and COMPLICATED - Reason: %s\n",
+		if ( VERBOSE ) eprintf("Enclave NOT TRUSTED and COMPLICATED - Reason: %s\n",
 			reportObj["isvEnclaveQuoteStatus"].ToString().c_str());
 	} else {
 		msg4->status = NotTrusted;
-		if ( verbose ) eprintf("Enclave NOT TRUSTED - Reason: %s\n",
+		if ( VERBOSE ) eprintf("Enclave NOT TRUSTED - Reason: %s\n",
 			reportObj["isvEnclaveQuoteStatus"].ToString().c_str());
 	}
 
@@ -1450,7 +1450,7 @@ int get_attestation_report(IAS_Connection *ias, int version,
 	 * response */
 
 	if (!reportObj["platformInfoBlob"].IsNull()) {
-		if ( verbose ) eprintf("A Platform Info Blob (PIB) was provided by the IAS\n");
+		if ( VERBOSE ) eprintf("A Platform Info Blob (PIB) was provided by the IAS\n");
 
 		/* The platformInfoBlob has two parts, a TVL Header (4 bytes),
 		 * and TLV Payload (variable) */
@@ -1465,7 +1465,7 @@ int get_attestation_report(IAS_Connection *ias, int version,
 		int ret = from_hexstring ((unsigned char *)&msg4->platformInfoBlob, 
 			pibBuff.c_str(), pibBuff.length());
 		} else {
-			if ( verbose ) eprintf("A Platform Info Blob (PIB) was NOT provided by the IAS\n");
+			if ( VERBOSE ) eprintf("A Platform Info Blob (PIB) was NOT provided by the IAS\n");
 		}
                  
 		return 1;

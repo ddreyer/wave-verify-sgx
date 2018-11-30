@@ -9,13 +9,13 @@
 # and development, so if you change this you'll need to change them,
 # too.
 
-QUERY_IAS_PRODUCTION=0
+QUERY_IAS_PRODUCTION=1
 
 
 # Your Service Provider ID. This should be a 32-character hex string.
 # [REQUIRED]
 
-SPID=928A6B0E3CDDAD56EB3BADAA3B63F71F
+SPID=673DB7982377EA53703FED841032302D
 
 
 # Set to a non-zero value if this SPID is associated with linkable 
@@ -31,7 +31,7 @@ LINKABLE=0
 
 # Your IAS client certificate file. [REQUIRED]
 
-IAS_CLIENT_CERT_FILE=../ias-ra-data/cert/plse-ias-dev.pem
+IAS_CLIENT_CERT_FILE=/var/www/html/client.crt
 
 
 # Your IAS client key file.
@@ -44,14 +44,14 @@ IAS_CLIENT_CERT_FILE=../ias-ra-data/cert/plse-ias-dev.pem
 # (there's no command line option to send the password or a password 
 # file path).
 
-IAS_CLIENT_KEY_FILE=../ias-ra-data/cert/plse-ias-dev.pem
+# IAS_CLIENT_KEY_FILE=../ias-ra-data/cert/plse-ias-dev.pem
 
 
 # If your IAS client certificate's key is encrypted, put the password
 # in a file, and place the filename here. If you aren't using a password
 # then comment this out.
 
-IAS_CLIENT_CERT_KEY_PASSWORD_FILE=
+# IAS_CLIENT_CERT_KEY_PASSWORD_FILE=
 
 
 # Your IAS client certificate type. This defaults to PEM if you leave
@@ -64,7 +64,7 @@ IAS_CLIENT_CERT_TYPE=
 # when you apply for access to SGX Developer Services at 
 # http://software.intel.com/sgx [REQUIRED]
 
-IAS_REPORT_SIGNING_CA_FILE=../ias-ra-data/cert/IASReportSigningCACert.pem
+IAS_REPORT_SIGNING_CA_FILE=../../AttestationReportSigningCACert.pem
 
 
 # Set to the URL for your proxy server to force the use of a proxy
@@ -77,7 +77,7 @@ IAS_PROXY_URL=http://proxy-us.intel.com:911/
 # direct connection when communicating with IAS (overriding any
 # environment variables).
 
-# IAS_DISABLE_PROXY=0
+# IAS_DISABLE_PROXY=1
 
 
 # Set to non-zero to enforce a strict attestation policy, which rejects 

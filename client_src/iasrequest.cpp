@@ -183,7 +183,7 @@ int IAS_Connection::client_key(const char *file, const char *passwd)
 			(unsigned char) passwd[i]^c_xor[i];
 	}
 
-	if ( debug ) {
+	if ( DEBUG ) {
 		eprintf("+++ Password:           %s\n", hexstring(passwd, c_pwlen));
 		eprintf("+++ One-time pad:       %s\n", hexstring(c_xor, c_pwlen));
 		eprintf("+++ Encrypted password: %s\n", hexstring(c_key_passwd,
@@ -274,7 +274,7 @@ Agent *IAS_Connection::new_agent()
 		// order of preference.
 
 #ifdef AGENT_LIBCURL
-		if ( debug ) eprintf("+++ Trying agent_curl\n");
+		if ( DEBUG ) eprintf("+++ Trying agent_curl\n");
 		try {
 			newagent= (Agent *) new AgentCurl(this);
 		}
@@ -282,7 +282,7 @@ Agent *IAS_Connection::new_agent()
 #endif
 #ifdef AGENT_WGET
 		if ( newagent == NULL ) {
-			if ( debug ) eprintf("+++ Trying agent_wget\n");
+			if ( DEBUG ) eprintf("+++ Trying agent_wget\n");
 			try {
 				newagent= (Agent *) new AgentWget(this);
 			}
@@ -325,14 +325,14 @@ ias_error_t IAS_Request::sigrl(uint32_t gid, string &sigrl)
 	url+= "/sigrl/";
 	url+= sgid;
 
-	if ( verbose ) {
+	if ( VERBOSE ) {
 		edividerWithText("IAS sigrl HTTP Request");
 		eprintf("HTTP GET %s\n", url.c_str());
 		edivider();
 	}
 
 	if ( agent->request(url, "", response) ) {
-		if ( verbose ) {
+		if ( VERBOSE ) {
 			edividerWithText("IAS sigrl HTTP Response");
 			eputs(response.inspect().c_str());
 			edivider();
@@ -390,14 +390,14 @@ ias_error_t IAS_Request::report(map<string,string> &payload, string &content,
 		return IAS_QUERY_FAILED;
 	}
 
-	if ( verbose ) {
+	if ( VERBOSE ) {
 		edividerWithText("IAS report HTTP Request");
 		eprintf("HTTP POST %s\n", url.c_str());
 		edivider();
 	}
 
 	if ( agent->request(url, body, response) ) {
-		if ( verbose ) {
+		if ( VERBOSE ) {
 			edividerWithText("IAS report HTTP Response");
 			eputs(response.inspect().c_str());
 			edivider();
@@ -449,7 +449,7 @@ ias_error_t IAS_Request::report(map<string,string> &payload, string &content,
 		cend= certchain.find("-----BEGIN", cstart+1);
 		len= ( (cend == string::npos) ? certchain.length() : cend )-cstart;
 
-		if ( verbose ) {
+		if ( VERBOSE ) {
 			edividerWithText("Certficate");
 			eputs(certchain.substr(cstart, len).c_str());
 			eprintf("\n");
@@ -466,7 +466,7 @@ ias_error_t IAS_Request::report(map<string,string> &payload, string &content,
 	}
 
 	count= certvec.size();
-	if ( debug ) eprintf( "+++ Found %lu certificates in chain\n", count);
+	if ( DEBUG ) eprintf( "+++ Found %lu certificates in chain\n", count);
 
 	certar= (X509**) malloc(sizeof(X509 *)*(count+1));
 	if ( certar == 0 ) {
@@ -494,7 +494,7 @@ ias_error_t IAS_Request::report(map<string,string> &payload, string &content,
 		status= IAS_BAD_CERTIFICATE;
 		goto cleanup;
 	} else {
-		if ( debug ) eprintf("+++ certificate chain verified\n", rv);
+		if ( DEBUG ) eprintf("+++ certificate chain verified\n", rv);
 	}
 
 	// The signing cert is valid, so extract and verify the signature
@@ -513,7 +513,7 @@ ias_error_t IAS_Request::report(map<string,string> &payload, string &content,
 		goto cleanup;
 	}
 
-	if ( verbose ) {
+	if ( VERBOSE ) {
 		edividerWithText("Report Signature");
 		print_hexstring(stderr, sig, sigsz);
 		if ( fplog != NULL ) print_hexstring(fplog, sig, sigsz);
@@ -529,7 +529,7 @@ ias_error_t IAS_Request::report(map<string,string> &payload, string &content,
 	 * verify the signature.
 	 */
 
-	if ( debug ) eprintf("+++ Extracting public key from signing cert\n");
+	if ( DEBUG ) eprintf("+++ Extracting public key from signing cert\n");
 	pkey= X509_get_pubkey(sign_cert);
 	if ( pkey == NULL ) {
 		eprintf("Could not extract public key from certificate\n");
@@ -540,7 +540,7 @@ ias_error_t IAS_Request::report(map<string,string> &payload, string &content,
 
 	content= response.content_string();
 
-	if ( debug ) {
+	if ( DEBUG ) {
 		eprintf("+++ Verifying signature over report body\n");
 		edividerWithText("Report");
 		eputs(content.c_str());
@@ -559,7 +559,7 @@ ias_error_t IAS_Request::report(map<string,string> &payload, string &content,
 		status= IAS_BAD_SIGNATURE;
 	} else {
 		if ( rv ) {
-			if ( verbose ) eprintf("+++ Signature verified\n");
+			if ( VERBOSE ) eprintf("+++ Signature verified\n");
 			status= IAS_OK;
 		} else {
 			eprintf("Invalid report signature\n");

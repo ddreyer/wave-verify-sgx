@@ -98,7 +98,7 @@ retry_write:
 
 		// Output options
 
-		if ( ! verbose ) wget_args.push_back("--quiet");
+		if ( ! VERBOSE ) wget_args.push_back("--quiet");
 		wget_args.push_back("--output-document=-");
 		wget_args.push_back("--save-headers");
 		wget_args.push_back("--content-on-error");
