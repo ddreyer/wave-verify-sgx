@@ -3,22 +3,357 @@ package main
 /*
 #include "enclave_app.h"
 #cgo CFLAGS: -I. -I../utils -I/home/sgx/linux-sgx/linux/installer/bin/sgxsdk/include
-#cgo LDFLAGS: -ltee -L.
+#cgo LDFLAGS: -lverify -L.
 */
 import "C"
 
 import (
+	"context"
 	"encoding/pem"
 	"fmt"
+	"io"
 	"io/ioutil"
+	"os"
+	"time"
 	"unsafe"
+
+	"github.com/immesys/wave/eapi"
+	"github.com/immesys/wave/eapi/pb"
+	"google.golang.org/grpc"
 )
 
-const WAVEMQPermissionSet = "\x1b\x20\x14\x33\x74\xb3\x2f\xd2\x74\x39\x54\xfe\x47\x86\xf6\xcf\x86\xd4\x03\x72\x0f\x5e\xc4\x42\x36\xb6\x58\xc2\x6a\x1e\x68\x0f\x6e\x01"
-const WAVEMQPublish = "publish"
+var waveconn pb.WAVEClient
+
+func init() {
+	conn, err := grpc.Dial("127.0.0.1:410", grpc.WithInsecure(), grpc.FailOnNonTempDialError(true), grpc.WithBlock())
+	if err != nil {
+		fmt.Printf("failed to connect to agent: %v\n", err)
+		os.Exit(1)
+	}
+	waveconn = pb.NewWAVEClient(conn)
+	ret := C.init_enclave()
+	if ret != 0 {
+		fmt.Printf("error initializing enclave")
+		os.Exit(1)
+	}
+}
+
+func checkVerification(DER []byte) error {
+	// proofresp, err := waveconn.VerifyProof(context.Background(), &pb.VerifyProofParams{
+
+	// }
+
+	proofPointer := unsafe.Pointer(&DER[0])
+	proofDER := (*C.char)(proofPointer)
+	proofSize := len(DER)
+	// fmt.Println(proofSize)
+
+	if ret := C.verify(proofDER, C.ulong(proofSize), nil, 0, nil, 0); ret != 0 {
+		return fmt.Errorf("failed to C verify")
+	}
+	return nil
+}
+
+func testBasicEntityAttestation() error {
+	src, err := waveconn.CreateEntity(context.Background(), &pb.CreateEntityParams{})
+	if err != nil {
+		panic(err)
+	}
+	if src.Error != nil {
+		panic(src.Error.Message)
+	}
+	dst, err := waveconn.CreateEntity(context.Background(), &pb.CreateEntityParams{})
+	if err != nil {
+		panic(err)
+	}
+	if dst.Error != nil {
+		panic(dst.Error.Message)
+	}
+	srcresp, err := waveconn.PublishEntity(context.Background(), &pb.PublishEntityParams{
+		DER: src.PublicDER,
+		Location: &pb.Location{
+			AgentLocation: "default",
+		},
+	})
+	if err != nil {
+		panic(err)
+	}
+	if srcresp.Error != nil {
+		panic(srcresp.Error.Message)
+	}
+	dstresp, err := waveconn.PublishEntity(context.Background(), &pb.PublishEntityParams{
+		DER: dst.PublicDER,
+		Location: &pb.Location{
+			AgentLocation: "default",
+		},
+	})
+	if err != nil {
+		panic(err)
+	}
+	if dstresp.Error != nil {
+		panic(dstresp.Error.Message)
+	}
+	fmt.Printf("srcr: %x\n", srcresp.Hash)
+	attresp, err := waveconn.CreateAttestation(context.Background(), &pb.CreateAttestationParams{
+		Perspective: &pb.Perspective{
+			EntitySecret: &pb.EntitySecret{
+				DER: src.SecretDER,
+			},
+			Location: &pb.Location{
+				AgentLocation: "default",
+			},
+		},
+		ValidUntil:  time.Now().Add(3*365*24*time.Hour).UnixNano() / 1e6,
+		BodyScheme:  eapi.BodySchemeWaveRef1,
+		SubjectHash: dst.Hash,
+		SubjectLocation: &pb.Location{
+			AgentLocation: "default",
+		},
+		Policy: &pb.Policy{
+			RTreePolicy: &pb.RTreePolicy{
+				Namespace:    srcresp.Hash,
+				Indirections: 4,
+				Statements: []*pb.RTreePolicyStatement{
+					&pb.RTreePolicyStatement{
+						PermissionSet: srcresp.Hash,
+						Permissions:   []string{"foo1", "foo2", "foo3", "foo4"},
+						Resource:      "bar",
+					},
+				},
+			},
+		},
+	})
+	if err != nil {
+		panic(err)
+	}
+	if attresp.Error != nil {
+		panic(attresp.Error.Message)
+	}
+	attpub, err := waveconn.PublishAttestation(context.Background(), &pb.PublishAttestationParams{
+		DER: attresp.DER,
+	})
+	if err != nil {
+		panic(err)
+	}
+	if attpub.Error != nil {
+		panic(attpub.Error.Message)
+	}
+	waveconn.ResyncPerspectiveGraph(context.Background(), &pb.ResyncPerspectiveGraphParams{
+		Perspective: &pb.Perspective{
+			EntitySecret: &pb.EntitySecret{
+				DER: dst.SecretDER,
+			},
+		},
+	})
+	cl, err := waveconn.WaitForSyncComplete(context.Background(), &pb.SyncParams{
+		Perspective: &pb.Perspective{
+			EntitySecret: &pb.EntitySecret{
+				DER: dst.SecretDER,
+			},
+		},
+	})
+	if err != nil {
+		panic(err)
+	}
+	for {
+		_, err := cl.Recv()
+		if err == io.EOF {
+			break
+		}
+	}
+	proofresp, err := waveconn.BuildRTreeProof(context.Background(), &pb.BuildRTreeProofParams{
+		Perspective: &pb.Perspective{
+			EntitySecret: &pb.EntitySecret{
+				DER: dst.SecretDER,
+			},
+			Location: &pb.Location{
+				AgentLocation: "default",
+			},
+		},
+		SubjectHash: dstresp.Hash,
+		Namespace:   srcresp.Hash,
+		Statements: []*pb.RTreePolicyStatement{
+			&pb.RTreePolicyStatement{
+				PermissionSet: srcresp.Hash,
+				Permissions:   []string{"foo1", "foo2", "foo3", "foo4"},
+				Resource:      "bar",
+			},
+		},
+	})
+	if err != nil {
+		panic(err)
+	}
+	if proofresp.Error != nil {
+		panic(proofresp.Error.Message)
+	}
+
+	if err = checkVerification(proofresp.ProofDER); err != nil {
+		return fmt.Errorf("error in BasicEntityAttestation: %s", err.Error())
+	}
+	return nil
+}
+
+func testEntityWithExpiry() error {
+	src, err := waveconn.CreateEntity(context.Background(), &pb.CreateEntityParams{
+		ValidFrom:  time.Now().UnixNano() / 1e6,
+		ValidUntil: time.Now().Add(time.Minute*10).UnixNano() / 1e6,
+	})
+	if err != nil {
+		panic(err)
+	}
+	if src.Error != nil {
+		panic(src.Error.Message)
+	}
+	dst, err := waveconn.CreateEntity(context.Background(), &pb.CreateEntityParams{
+		ValidFrom:  time.Now().UnixNano() / 1e6,
+		ValidUntil: time.Now().Add(time.Minute*10).UnixNano() / 1e6,
+	})
+	if err != nil {
+		panic(err)
+	}
+	if dst.Error != nil {
+		panic(dst.Error.Message)
+	}
+	srcresp, err := waveconn.PublishEntity(context.Background(), &pb.PublishEntityParams{
+		DER: src.PublicDER,
+		Location: &pb.Location{
+			AgentLocation: "default",
+		},
+	})
+	if err != nil {
+		panic(err)
+	}
+	if srcresp.Error != nil {
+		panic(srcresp.Error.Message)
+	}
+	dstresp, err := waveconn.PublishEntity(context.Background(), &pb.PublishEntityParams{
+		DER: dst.PublicDER,
+		Location: &pb.Location{
+			AgentLocation: "default",
+		},
+	})
+	if err != nil {
+		panic(err)
+	}
+	if dstresp.Error != nil {
+		panic(dstresp.Error.Message)
+	}
+	fmt.Printf("srcr: %x\n", srcresp.Hash)
+	attresp, err := waveconn.CreateAttestation(context.Background(), &pb.CreateAttestationParams{
+		Perspective: &pb.Perspective{
+			EntitySecret: &pb.EntitySecret{
+				DER: src.SecretDER,
+			},
+			Location: &pb.Location{
+				AgentLocation: "default",
+			},
+		},
+		ValidUntil:  time.Now().Add(3*365*24*time.Hour).UnixNano() / 1e6,
+		BodyScheme:  eapi.BodySchemeWaveRef1,
+		SubjectHash: dst.Hash,
+		SubjectLocation: &pb.Location{
+			AgentLocation: "default",
+		},
+		Policy: &pb.Policy{
+			RTreePolicy: &pb.RTreePolicy{
+				Namespace:    srcresp.Hash,
+				Indirections: 4,
+				Statements: []*pb.RTreePolicyStatement{
+					&pb.RTreePolicyStatement{
+						PermissionSet: srcresp.Hash,
+						Permissions:   []string{"foo1", "foo2", "foo3", "foo4"},
+						Resource:      "bar",
+					},
+				},
+			},
+		},
+	})
+	if err != nil {
+		panic(err)
+	}
+	if attresp.Error != nil {
+		panic(attresp.Error.Message)
+	}
+	attpub, err := waveconn.PublishAttestation(context.Background(), &pb.PublishAttestationParams{
+		DER: attresp.DER,
+	})
+	if err != nil {
+		panic(err)
+	}
+	if attpub.Error != nil {
+		panic(attpub.Error.Message)
+	}
+	waveconn.ResyncPerspectiveGraph(context.Background(), &pb.ResyncPerspectiveGraphParams{
+		Perspective: &pb.Perspective{
+			EntitySecret: &pb.EntitySecret{
+				DER: dst.SecretDER,
+			},
+		},
+	})
+	cl, err := waveconn.WaitForSyncComplete(context.Background(), &pb.SyncParams{
+		Perspective: &pb.Perspective{
+			EntitySecret: &pb.EntitySecret{
+				DER: dst.SecretDER,
+			},
+		},
+	})
+	if err != nil {
+		panic(err)
+	}
+	for {
+		_, err := cl.Recv()
+		if err == io.EOF {
+			break
+		}
+	}
+	proofresp, err := waveconn.BuildRTreeProof(context.Background(), &pb.BuildRTreeProofParams{
+		Perspective: &pb.Perspective{
+			EntitySecret: &pb.EntitySecret{
+				DER: dst.SecretDER,
+			},
+			Location: &pb.Location{
+				AgentLocation: "default",
+			},
+		},
+		SubjectHash: dstresp.Hash,
+		Namespace:   srcresp.Hash,
+		Statements: []*pb.RTreePolicyStatement{
+			&pb.RTreePolicyStatement{
+				PermissionSet: srcresp.Hash,
+				Permissions:   []string{"foo1", "foo2", "foo3", "foo4"},
+				Resource:      "bar",
+			},
+		},
+	})
+	if err != nil {
+		panic(err)
+	}
+	if proofresp.Error != nil {
+		panic(proofresp.Error.Message)
+	}
+	if err = checkVerification(proofresp.ProofDER); err != nil {
+		return fmt.Errorf("error in EntityWithExpiry: %s", err.Error())
+	}
+	return nil
+}
 
 func main() {
-	contents, err := ioutil.ReadFile("proof0.2.2.pem")
+	var err1 error
+	fmt.Println("======== TEST BASIC ENTITY/ATTESTATION ========")
+	err1 = testBasicEntityAttestation()
+	fmt.Println("======== END TEST BASIC ENTITY/ATTESTATION ========")
+	var err2 error
+	fmt.Println("======== TEST ENTITY WITH EXPIRY ========")
+	err2 = testEntityWithExpiry()
+	fmt.Println("======== END ENTITY WITH EXPIRY ========")
+
+	if err1 != nil {
+		fmt.Println(err1)
+	}
+	if err2 != nil {
+		fmt.Println(err2)
+	}
+	contents, err := ioutil.ReadFile("wavemqrouterproof.pem")
 	if err != nil {
 		fmt.Printf("could not read file %q: %v\n", "proof.pem", err)
 	}
@@ -26,56 +361,10 @@ func main() {
 	if block == nil {
 		fmt.Printf("file %q is not a PEM file\n", "proof.pem")
 	}
+
 	proofPointer := unsafe.Pointer(&block.Bytes[0])
 	proofDER := (*C.char)(proofPointer)
 	proofSize := len(block.Bytes)
 	fmt.Println(proofSize)
-	// defer C.free(proofPointer)
-	// ehash := iapi.HashSchemeInstanceFromMultihash([]byte("hello"))
-	// if !ehash.Supported() {
-	// 	fmt.Printf("hash not supported")
-	// }
-	// ext := ehash.CanonicalForm()
-	// pol := serdes.RTreePolicy{
-	// 	Namespace: *ext,
-	// 	Statements: []serdes.RTreeStatement{
-	// 		{
-	// 			PermissionSet: asn1.NewExternal([]byte(WAVEMQPermissionSet)),
-	// 			Permissions:   []string{WAVEMQPublish},
-	// 			Resource:      "temp",
-	// 		},
-	// 	},
-	// }
-	// polBytes, err := asn1.Marshal(pol)
-	// if err != nil {
-	// 	fmt.Printf("error marshaling", err)
-	// }
-	// polEnc := base64.StdEncoding.EncodeToString(polBytes)
-	// polDER := C.CString(polEnc)
-	// defer C.free(unsafe.Pointer(polDER))
-
-	// presp, err := am.wave.VerifyProof(ctx, &eapipb.VerifyProofParams{
-	// 	ProofDER: m.ProofDER,
-	// 	Subject:  m.Tbs.SourceEntity,
-	// 	RequiredRTreePolicy: &eapipb.RTreePolicy{
-	// 		Namespace: m.Tbs.Namespace,
-	// 		Statements: []*eapipb.RTreePolicyStatement{
-	// 			{
-	// 				PermissionSet: []byte(WAVEMQPermissionSet),
-	// 				Permissions:   []string{WAVEMQPublish},
-	// 				Resource:      m.Tbs.Uri,
-	// 			},
-	// 		},
-	// 	},
-	// })
-
-	// subj := base64.StdEncoding.EncodeToString([]byte{'t'})
-	// subject := C.CString(subj)
-	// defer C.free(unsafe.Pointer(subject))
-	// C.init_and_verify(proofDER, C.ulong(proofSize), subject, C.ulong(len(subj)), polDER, C.ulong(len(polEnc)))
-	C.verify(proofDER, C.ulong(proofSize), nil, 0, nil, 0)
-	fmt.Println("hello")
-	C.init_enclave()
-	// C.init_and_verify(proofDER, C.ulong(proofSize), nil, 0, nil, 0)
 	C.verify(proofDER, C.ulong(proofSize), nil, 0, nil, 0)
 }
