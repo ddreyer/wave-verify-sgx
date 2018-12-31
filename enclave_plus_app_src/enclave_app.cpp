@@ -53,6 +53,7 @@ using namespace std;
 #endif
 
 sgx_enclave_id_t eid = 0;
+sgx_ra_context_t ra_ctx= 0xdeadbeef;
 
 int init_enclave() {
 	sgx_launch_token_t token= { 0 };
@@ -139,9 +140,78 @@ int verify(char *proof_cipher, size_t proof_cipher_size, char *subject,
 		fprintf(stderr, "ecall_verify_proof: %08x\n", sgxrv);
 		return 1;
 	}
-	// enclave_ra_close(eid, &sgxrv, ra_ctx);
 	return 0;
 }
+
+
+/* initialize remote attestation and generate messages 0 and 1 */
+// int generate0and1() {
+// 	sgx_status_t status, sgxrv;
+// 	sgx_ra_msg1_t msg1 ;
+
+// 	if ( DEBUG ) 
+// 		fprintf(stderr, "+++ using supplied public key\n");
+// 	status = enclave_ra_init(eid, &sgxrv, client_key->pubkey, 0, &ra_ctx);
+
+// 	/* Did the ECALL succeed? */
+// 	if ( status != SGX_SUCCESS ) {
+// 		fprintf(stderr, "enclave_ra_init: %08x\n", status);
+// 		return 1;
+// 	}
+
+// 	/* Generate msg0 */
+// 	status = sgx_get_extended_epid_group_id(&msg0_extended_epid_group_id);
+// 	if ( status != SGX_SUCCESS ) {
+//                 enclave_ra_close(eid, &sgxrv, ra_ctx); 
+// 		fprintf(stderr, "sgx_get_extended_epid_group_id: %08x\n", status);
+// 		return 1;
+// 	}
+// 	if ( VERBOSE ) {
+// 		dividerWithText(stderr, "Msg0 Details");
+// 		dividerWithText(fplog, "Msg0 Details");
+// 		fprintf(stderr,   "Extended Epid Group ID: ");
+// 		fprintf(fplog,   "Extended Epid Group ID: ");
+// 		print_hexstring(stderr, &msg0_extended_epid_group_id,
+// 			 sizeof(uint32_t));
+// 		print_hexstring(fplog, &msg0_extended_epid_group_id,
+// 			 sizeof(uint32_t));
+// 		fprintf(stderr, "\n");
+// 		fprintf(fplog, "\n");
+// 		divider(stderr);
+// 		divider(fplog);
+// 	}
+ 
+// 	/* Generate msg1 */
+
+// 	status= sgx_ra_get_msg1(ra_ctx, eid, sgx_ra_get_ga, &msg1);
+// 	if ( status != SGX_SUCCESS ) {
+//                 enclave_ra_close(eid, &sgxrv, ra_ctx);
+// 		fprintf(stderr, "sgx_ra_get_msg1: %08x\n", status);
+// 		fprintf(fplog, "sgx_ra_get_msg1: %08x\n", status);
+// 		return 1;
+// 	}
+
+// 	if ( VERBOSE ) {
+// 		dividerWithText(stderr,"Msg1 Details");
+// 		dividerWithText(fplog,"Msg1 Details");
+// 		fprintf(stderr,   "msg1.g_a.gx = ");
+// 		fprintf(fplog,   "msg1.g_a.gx = ");
+// 		print_hexstring(stderr, msg1.g_a.gx, 32);
+// 		print_hexstring(fplog, msg1.g_a.gx, 32);
+// 		fprintf(stderr, "\nmsg1.g_a.gy = ");
+// 		fprintf(fplog, "\nmsg1.g_a.gy = ");
+// 		print_hexstring(stderr, msg1.g_a.gy, 32);
+// 		print_hexstring(fplog, msg1.g_a.gy, 32);
+// 		fprintf(stderr, "\nmsg1.gid    = ");
+// 		fprintf(fplog, "\nmsg1.gid    = ");
+// 		print_hexstring(stderr, msg1.gid, 4);
+// 		print_hexstring(fplog, msg1.gid, 4);
+// 		fprintf(stderr, "\n");
+// 		fprintf(fplog, "\n");
+// 		divider(stderr);
+// 		divider(fplog);
+// 	}
+// }
 
 // int main() {
 // 	return 0;
@@ -229,47 +299,6 @@ int main ()
 
 	close_logfile(fplog);
 }
-
-// int do_verify(sgx_enclave_id_t eid)
-// {
-// 	sgx_status_t status, sgxrv;
-// 	ra_msgproof_t *proof_info;
-// 	sgx_ra_context_t ra_ctx= 0xdeadbeef;
-// 	int rv;
-// 	MsgIO *msgio;
-
-// 	try {
-// 		msgio = new MsgIO(strdup(DEFAULT_SERVER), strdup(DEFAULT_PORT));
-// 	}
-// 	catch(...) {
-// 		exit(1);
-// 	}
-
-// 	/* read encrypted proof contents */
-// 	rv= msgio->read((void **) &proof_info, NULL);
-// 	printf("Enclave app: Retrieved proof from client\n");
-
-// 	if ( rv == 0 ) {
-//         enclave_ra_close(eid, &sgxrv, ra_ctx);
-// 		fprintf(stderr, "protocol error reading proof from client\n");
-// 		exit(1);
-// 	} else if ( rv == -1 ) {
-//         enclave_ra_close(eid, &sgxrv, ra_ctx);
-// 		fprintf(stderr, "system error occurred while reading proof from client\n");
-// 		exit(1);
-// 	}
-
-// 	/* pass cipher into enclave to decrypt and verify */
-//     status = ecall_verify_proof(eid, &sgxrv, proof_cipher, proof_cipher_size, subject, 
-// 	subj_size, policyDER, policyDER_size);
-
-// 	if ( sgxrv != SGX_SUCCESS ) {
-// 		fprintf(stderr, "ecall_verify_proof: %08x\n", sgxrv);
-// 		return 1;
-// 	}
-// 	enclave_ra_close(eid, &sgxrv, ra_ctx);
-// 	return 0;
-// }
 
 int do_attestation (sgx_enclave_id_t eid)
 {

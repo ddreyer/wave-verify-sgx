@@ -44,7 +44,7 @@ extern "C" {
 
     int init_enclave();
 
-    int do_verify(sgx_enclave_id_t eid);
+    int generate0and1();
 
     int do_attestation(sgx_enclave_id_t eid);
     

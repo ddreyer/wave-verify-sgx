@@ -69,31 +69,37 @@ sgx_status_t ecall_verify_proof(char *proof_cipher, size_t proof_cipher_size, ch
 	// EVP_CIPHER_CTX_free(kctx);
 	// ocall_print("proof decryption succeeded");
 
-	/* verify proof */
-	RVerifyRTreeProof *resp = verify_rtree_proof(proof_cipher, proof_cipher_size);
-	if (resp == nullptr) {
+	// gofunc: VerifyProof
+	auto [finalsubject, superset_ns, supersetStatements] = 
+		verify_rtree_proof(proof_cipher, proof_cipher_size);
+	if (finalsubject == nullptr) {
 		return verify_error("error in verify rtree proof");
 	}
 	ocall_print("verify_rtree_proof succeeded\n");
 
-	// skipping checking attestations
+	// skipping checking attestations for expiry/revocation
 
 	// Check that proof policy is a superset of required policy
+	// gofunc: IsSubsetOf
 	if (policyDER != nullptr) {
 		ocall_print("comparing proof policy to required policy\n");
+		WaveWireObject_t *wwoPtr = 0;
+    	wwoPtr = (WaveWireObject_t *) unmarshal((uint8_t *) policyDER, policyDER_size, wwoPtr, &asn_DEF_WaveWireObject);
+		if (wwoPtr == nullptr) {
+			return verify_error("failed to unmarshal wave wire object");
+		}
+		ANY_t type = wwoPtr->encoding.choice.single_ASN1_type;
 		RTreePolicy_t *policy = 0;
-		policy = (RTreePolicy_t *) unmarshal((uint8_t *) policyDER, policyDER_size, policy, &asn_DEF_RTreePolicy);
+		policy = (RTreePolicy_t *) unmarshal(type.buf, type.size, policy, &asn_DEF_RTreePolicy);
         if (policy == nullptr) {
            	return verify_error("unexpected error unmarshaling policy");
         }
 
-		// gofunc: IsSubsetOf
-		RTreePolicy_t superset_policy = resp->get_policy();
-		OCTET_STRING_t *superset_ns = HashSchemeInstanceFor(&superset_policy);
 		OCTET_STRING_t *lhs_ns = HashSchemeInstanceFor(policy);
+
 		// not doing multihash
 		if (OCTET_STRING_compare(&asn_DEF_OCTET_STRING, superset_ns, lhs_ns)) {
-			return verify_error("proof is well formed but grants insufficient permissions");
+			return verify_error("proof is well formed but namespaces don't match");
 		}
 
 		RTreePolicy_t::RTreePolicy__statements policyStatements = policy->statements;
@@ -110,25 +116,25 @@ sgx_status_t ecall_verify_proof(char *proof_cipher, size_t proof_cipher_size, ch
 				string permStr = string((const char *) perm->buf, perm->size);
 				leftPerms.push_back(permStr);
 			}
-
-			RTreePolicy_t::RTreePolicy__statements super_policyStatements = superset_policy.statements;
+			// RTreePolicy_t::RTreePolicy__statements super_policyStatements = superset_policy.statements;
+			// vector<RTreeStatementItem> super_policyStatements = superset_policy->get_statements();
 			int superset_index = 0;
 			bool superset = false;
-			while (superset_index < super_policyStatements.list.count) {
-				RTreeStatement_t *ss = super_policyStatements.list.array[superset_index];
+			while (superset_index < supersetStatements.size()) {
+				// RTreeStatement_t *ss = super_policyStatements.list.array[superset_index];
+				RTreeStatementItem supersetStatement = supersetStatements[superset_index];
 				superset_index++;
-				string superResource = string((const char *) ls->resource.buf, ls->resource.size);
-				list<string> superPerms;
-				idx = 0;
-				while (idx < ss->permissions.list.count) {
-					UTF8String_t *perm = ss->permissions.list.array[idx];
-					idx++;
-					string permStr = string((const char *) perm->buf, perm->size);
-					superPerms.push_back(permStr);
-				}
+				// string superResource = string((const char *) ls->resource.buf, ls->resource.size);
+				// list<string> superPerms;
+				// idx = 0;
+				// while (idx < ss->permissions.list.count) {
+				// 	UTF8String_t *perm = ss->permissions.list.array[idx];
+				// 	idx++;
+				// 	string permStr = string((const char *) perm->buf, perm->size);
+				// 	superPerms.push_back(permStr);
+				// }
 
 				RTreeStatementItem leftStatement = RTreeStatementItem(&ls->permissionSet, leftPerms, leftResource);
-				RTreeStatementItem supersetStatement = RTreeStatementItem(&ss->permissionSet, superPerms, superResource);
 				if (isStatementSupersetOf(&leftStatement, &supersetStatement)) {
 					superset = true;
 					break;
@@ -138,16 +144,15 @@ sgx_status_t ecall_verify_proof(char *proof_cipher, size_t proof_cipher_size, ch
 				return verify_error("proof is well formed but grants insufficient permissions");
 			}
 		}
-
 	}
 	ocall_print("proof grants sufficient permissions\n");
+
 	// Check subject
 	ocall_print("checking that subjects match\n");
-	OCTET_STRING_t respSubject = resp->get_subject();
-	OCTET_STRING_t *subj = OCTET_STRING_new_fromBuf(&asn_DEF_OCTET_STRING, subject, subj_size);
-	if (OCTET_STRING_compare(&asn_DEF_OCTET_STRING, subj, &respSubject)) {
+	if (memcmp(subject, finalsubject->buf, subj_size)) {
 		return verify_error("proof is well formed but subject does not match");
-    }
+	}
+	ocall_print("subjects match\n");
 
 	ocall_print("verifying proof succeeded\n");
     return SGX_SUCCESS;

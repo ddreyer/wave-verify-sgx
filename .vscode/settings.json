@@ -88,6 +88,7 @@
         "ostream": "cpp",
         "numeric": "cpp",
         "streambuf": "cpp",
-        "cinttypes": "cpp"
+        "cinttypes": "cpp",
+        "iterator": "cpp"
     }
 }
