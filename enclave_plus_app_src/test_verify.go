@@ -28,14 +28,14 @@ import (
 type TestFunc func() TestVerifyError
 
 var tests = map[string]TestFunc{
-	// "BASIC": testBasic,
-	"BASIC WITH EXPIRY": testBasicWithExpiry,
+	// "BASIC":                 testBasic,
+	// "BASIC WITH EXPIRY":     testBasicWithExpiry,
 	// "MULTIPLE ATTESTATIONS": testMultipleAttestations,
 	// "BAD POLICY PERMISSION": testBadPolicyPermission,
-	// "BAD POLICY RESOURCE": testBadPolicyResource,
-	// "BAD POLICY PSET": testBadPolicyPset,
-	// "BAD POLICY NAMESPACE": testBadPolicyNamespace,
-	// "BAD POLICY SUBJECT:": testBadPolicySubject,
+	// "BAD POLICY RESOURCE":   testBadPolicyResource,
+	// "BAD POLICY PSET":       testBadPolicyPset,
+	// "BAD POLICY NAMESPACE":  testBadPolicyNamespace,
+	"BAD POLICY SUBJECT:": testBadPolicySubject,
 }
 
 var waveconn pb.WAVEClient
@@ -180,6 +180,7 @@ func checkVerification(DER []byte, spol *serdes.RTreePolicy, pbPol *pb.RTreePoli
 	var wveError string
 	var enclaveError string
 	var expiryError string
+	var proofTime time.Time
 	verifyresp, err := waveconn.VerifyProof(context.Background(), &pb.VerifyProofParams{
 		ProofDER:            DER,
 		Subject:             subjectHash,
@@ -191,6 +192,7 @@ func checkVerification(DER []byte, spol *serdes.RTreePolicy, pbPol *pb.RTreePoli
 	if verifyresp.Error != nil {
 		wveError = verifyresp.Error.Message
 	}
+	waveTime := time.Unix(verifyresp.Result.GetExpiry()/1e3, 0)
 
 	//This is not important
 	nsloc := iapi.NewLocationSchemeInstanceURL("https://foo.com", 1).CanonicalForm()
@@ -212,12 +214,12 @@ func checkVerification(DER []byte, spol *serdes.RTreePolicy, pbPol *pb.RTreePoli
 		polDER, C.ulong(len(polBytes)))
 	if int64(CExpiry) == -1 {
 		enclaveError = wve.Err(wve.EnclaveError, "failed to C verify proof").Error()
+	} else {
+		expiryStr := strconv.FormatInt(int64(CExpiry), 10)
+		proofExpiry := fmt.Sprintf("20%s-%s-%sT%s:%s:%sZ", expiryStr[0:2], expiryStr[2:4],
+			expiryStr[4:6], expiryStr[6:8], expiryStr[8:10], expiryStr[10:12])
+		proofTime, _ = time.Parse(time.RFC3339, proofExpiry)
 	}
-	expiryStr := strconv.FormatInt(int64(CExpiry), 10)
-	proofExpiry := fmt.Sprintf("20%s-%s-%sT%s:%s:%sZ", expiryStr[0:2], expiryStr[2:4],
-		expiryStr[4:6], expiryStr[6:8], expiryStr[8:10], expiryStr[10:12])
-	proofTime, _ := time.Parse(time.RFC3339, proofExpiry)
-	waveTime := time.Unix(verifyresp.Result.GetExpiry()/1e3, 0)
 	if wveError == "" && enclaveError == "" {
 		if !waveTime.Equal(proofTime) {
 			expiryError = fmt.Sprintf("wave: %d enclave: %d", waveTime.String(), proofTime.String())
