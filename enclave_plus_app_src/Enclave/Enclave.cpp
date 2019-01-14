@@ -34,7 +34,7 @@ sgx_status_t enclave_ra_init(sgx_ec256_public_t key, int b_pse,
 }
 
 /* Enclave message verification */
-sgx_status_t ecall_verify_proof(char *proof_cipher, size_t proof_cipher_size, char *subject, 
+long ecall_verify_proof(char *proof_cipher, size_t proof_cipher_size, char *subject, 
 	size_t subj_size, char *policyDER, size_t policyDER_size) 
 {
     ocall_print("Enclave: Inside enclave to verify the proof\n");
@@ -70,7 +70,7 @@ sgx_status_t ecall_verify_proof(char *proof_cipher, size_t proof_cipher_size, ch
 	// ocall_print("proof decryption succeeded");
 
 	// gofunc: VerifyProof
-	auto [finalsubject, superset_ns, supersetStatements] = 
+	auto [finalsubject, superset_ns, supersetStatements, expiry] = 
 		verify_rtree_proof(proof_cipher, proof_cipher_size);
 	if (finalsubject == nullptr) {
 		return verify_error("error in verify rtree proof");
@@ -81,7 +81,7 @@ sgx_status_t ecall_verify_proof(char *proof_cipher, size_t proof_cipher_size, ch
 
 	// Check that proof policy is a superset of required policy
 	// gofunc: IsSubsetOf
-	if (policyDER != nullptr) {
+	if (policyDER == nullptr) {
 		ocall_print("comparing proof policy to required policy\n");
 		WaveWireObject_t *wwoPtr = 0;
     	wwoPtr = (WaveWireObject_t *) unmarshal((uint8_t *) policyDER, policyDER_size, wwoPtr, &asn_DEF_WaveWireObject);
@@ -155,7 +155,7 @@ sgx_status_t ecall_verify_proof(char *proof_cipher, size_t proof_cipher_size, ch
 	ocall_print("subjects match\n");
 
 	ocall_print("verifying proof succeeded\n");
-    return SGX_SUCCESS;
+    return expiry;
 }
 
 /*

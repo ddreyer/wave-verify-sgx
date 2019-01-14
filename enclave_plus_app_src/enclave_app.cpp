@@ -129,18 +129,17 @@ int init_enclave() {
 #endif
 }
 
-int verify(char *proof_cipher, size_t proof_cipher_size, char *subject, 
+long verify(char *proof_cipher, size_t proof_cipher_size, char *subject, 
 	size_t subj_size, char *policyDER, size_t policyDER_size) {
-	sgx_status_t status, sgxrv;
+	long expiry;
 	printf("in verify\n");
-	status = ecall_verify_proof(eid, &sgxrv, proof_cipher, proof_cipher_size, subject, 
+	sgx_status_t status = ecall_verify_proof(eid, &expiry, proof_cipher, proof_cipher_size, subject, 
 	subj_size, policyDER, policyDER_size);
 
-	if ( sgxrv != SGX_SUCCESS ) {
-		fprintf(stderr, "ecall_verify_proof: %08x\n", sgxrv);
-		return 1;
+	if (status != SGX_SUCCESS) {
+		fprintf(stderr, "ecall_verify_proof: %08x\n", status);
 	}
-	return 0;
+	return expiry;
 }
 
 

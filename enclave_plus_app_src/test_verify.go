@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 	"time"
 	"unsafe"
 
@@ -28,14 +29,13 @@ type TestFunc func() TestVerifyError
 
 var tests = map[string]TestFunc{
 	// "BASIC": testBasic,
+	"BASIC WITH EXPIRY": testBasicWithExpiry,
+	// "MULTIPLE ATTESTATIONS": testMultipleAttestations,
 	// "BAD POLICY PERMISSION": testBadPolicyPermission,
 	// "BAD POLICY RESOURCE": testBadPolicyResource,
 	// "BAD POLICY PSET": testBadPolicyPset,
 	// "BAD POLICY NAMESPACE": testBadPolicyNamespace,
 	// "BAD POLICY SUBJECT:": testBadPolicySubject,
-	"MULTIPLE ATTESTATIONS": testMultipleAttestations,
-	// "ENTITY WITH EXPIRY":    testEntityWithExpiry,
-
 }
 
 var waveconn pb.WAVEClient
@@ -45,10 +45,15 @@ var Dst *pb.CreateEntityResponse
 type TestVerifyError struct {
 	wveError     string
 	enclaveError string
+	expiryError  string
 }
 
 func (error *TestVerifyError) Error() string {
-	return "wave verify error: " + error.wveError + " enclave verify error: " + error.enclaveError
+	errStr := "wave verify error: " + error.wveError + " enclave verify error: " + error.enclaveError
+	if error.wveError == "" && error.enclaveError == "" {
+		errStr += " expiry error: " + error.expiryError
+	}
+	return errStr
 }
 
 // initializes waved connection, enclave, two default entities with no expiry, and an attestation
@@ -111,7 +116,6 @@ func init() {
 				AgentLocation: "default",
 			},
 		},
-		ValidUntil:  time.Now().Add(3*365*24*time.Hour).UnixNano() / 1e6,
 		BodyScheme:  eapi.BodySchemeWaveRef1,
 		SubjectHash: Dst.Hash,
 		SubjectLocation: &pb.Location{
@@ -175,6 +179,7 @@ func init() {
 func checkVerification(DER []byte, spol *serdes.RTreePolicy, pbPol *pb.RTreePolicy, subjectHash []byte) TestVerifyError {
 	var wveError string
 	var enclaveError string
+	var expiryError string
 	verifyresp, err := waveconn.VerifyProof(context.Background(), &pb.VerifyProofParams{
 		ProofDER:            DER,
 		Subject:             subjectHash,
@@ -203,13 +208,26 @@ func checkVerification(DER []byte, spol *serdes.RTreePolicy, pbPol *pb.RTreePoli
 	subject := (*C.char)(unsafe.Pointer(&subjectHash[2]))
 	proofDER := (*C.char)(unsafe.Pointer(&DER[0]))
 
-	if ret := C.verify(proofDER, C.ulong(len(DER)), subject, C.ulong(len(subjectHash)-2),
-		polDER, C.ulong(len(polBytes))); ret != 0 {
+	CExpiry := C.verify(proofDER, C.ulong(len(DER)), subject, C.ulong(len(subjectHash)-2),
+		polDER, C.ulong(len(polBytes)))
+	if int64(CExpiry) == -1 {
 		enclaveError = wve.Err(wve.EnclaveError, "failed to C verify proof").Error()
 	}
+	expiryStr := strconv.FormatInt(int64(CExpiry), 10)
+	proofExpiry := fmt.Sprintf("20%s-%s-%sT%s:%s:%sZ", expiryStr[0:2], expiryStr[2:4],
+		expiryStr[4:6], expiryStr[6:8], expiryStr[8:10], expiryStr[10:12])
+	proofTime, _ := time.Parse(time.RFC3339, proofExpiry)
+	waveTime := time.Unix(verifyresp.Result.GetExpiry()/1e3, 0)
+	if wveError == "" && enclaveError == "" {
+		if !waveTime.Equal(proofTime) {
+			expiryError = fmt.Sprintf("wave: %d enclave: %d", waveTime.String(), proofTime.String())
+		}
+	}
+
 	return TestVerifyError{
 		wveError:     wveError,
 		enclaveError: enclaveError,
+		expiryError:  expiryError,
 	}
 }
 
@@ -570,7 +588,7 @@ func testBadPolicySubject() TestVerifyError {
 			},
 		},
 	}
-	return checkVerification(proofresp.ProofDER, &spol, &pbPol, Dst.Hash)
+	return checkVerification(proofresp.ProofDER, &spol, &pbPol, Src.Hash)
 }
 
 // tests proof which contains multiple attestations
@@ -699,8 +717,8 @@ func testMultipleAttestations() TestVerifyError {
 	return checkVerification(proofresp.ProofDER, &spol, &pbPol, Dst.Hash)
 }
 
-// tests entities with expiries
-func testEntityWithExpiry() TestVerifyError {
+// tests entities and attestations with expiries
+func testBasicWithExpiry() TestVerifyError {
 	src, err := waveconn.CreateEntity(context.Background(), &pb.CreateEntityParams{
 		ValidFrom:  time.Now().UnixNano() / 1e6,
 		ValidUntil: time.Now().Add(time.Minute*10).UnixNano() / 1e6,
@@ -712,7 +730,7 @@ func testEntityWithExpiry() TestVerifyError {
 		panic(src.Error.Message)
 	}
 	dst, err := waveconn.CreateEntity(context.Background(), &pb.CreateEntityParams{
-		ValidUntil: time.Now().Add(time.Minute*10).UnixNano() / 1e6,
+		ValidUntil: time.Now().Add(time.Minute*20).UnixNano() / 1e6,
 	})
 	if err != nil {
 		panic(err)
@@ -753,7 +771,7 @@ func testEntityWithExpiry() TestVerifyError {
 				AgentLocation: "default",
 			},
 		},
-		ValidUntil:  time.Now().Add(3*365*24*time.Hour).UnixNano() / 1e6,
+		ValidUntil:  time.Now().Add(24*time.Hour).UnixNano() / 1e6,
 		BodyScheme:  eapi.BodySchemeWaveRef1,
 		SubjectHash: dst.Hash,
 		SubjectLocation: &pb.Location{
@@ -864,14 +882,14 @@ func testEntityWithExpiry() TestVerifyError {
 			},
 		},
 	}
-	return checkVerification(proofresp.ProofDER, &spol, &pbPol, Dst.Hash)
+	return checkVerification(proofresp.ProofDER, &spol, &pbPol, dst.Hash)
 }
 
 func main() {
 	var results []string
 	for name, test := range tests {
 		fmt.Println("======== TEST " + name + "========")
-		if err := test(); err.wveError != "<nil>" || err.enclaveError != "<nil>" {
+		if err := test(); err.wveError != "" || err.enclaveError != "" || err.expiryError != "" {
 			results = append(results, fmt.Sprintf("error in %s: %s", name, err.Error()))
 		}
 		fmt.Println("======== END " + name + "========")

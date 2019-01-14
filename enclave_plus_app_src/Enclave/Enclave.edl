@@ -36,7 +36,7 @@ enclave {
 		public sgx_status_t enclave_ra_init(sgx_ec256_public_t key, int b_pse,
 			[out] sgx_ra_context_t *ctx);
 
-		public sgx_status_t ecall_verify_proof([in,size=proof_cipher_size] char *proof_cipher,
+		public long ecall_verify_proof([in,size=proof_cipher_size] char *proof_cipher,
         	size_t proof_cipher_size, [in,size=subj_size] char *subject, size_t subj_size,
 			[in,size=policyDER_size] char *policyDER, size_t policyDER_size);
 

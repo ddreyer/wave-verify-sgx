@@ -39,7 +39,7 @@ extern "C" {
         sgx_misc_attribute_t *attr
     );
 
-    int verify(char *proof_cipher, size_t proof_cipher_size, char *subject, 
+    long verify(char *proof_cipher, size_t proof_cipher_size, char *subject, 
 	    size_t subj_size, char *policyDER, size_t policyDER_size);
 
     int init_enclave();

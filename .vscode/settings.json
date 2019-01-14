@@ -89,6 +89,7 @@
         "numeric": "cpp",
         "streambuf": "cpp",
         "cinttypes": "cpp",
-        "iterator": "cpp"
+        "iterator": "cpp",
+        "__locale": "cpp"
     }
 }
