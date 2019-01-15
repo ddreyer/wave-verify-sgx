@@ -90,6 +90,7 @@
         "streambuf": "cpp",
         "cinttypes": "cpp",
         "iterator": "cpp",
-        "__locale": "cpp"
+        "__locale": "cpp",
+        "__tuple": "cpp"
     }
 }

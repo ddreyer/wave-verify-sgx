@@ -31,11 +31,13 @@ var tests = map[string]TestFunc{
 	// "BASIC":                 testBasic,
 	// "BASIC WITH EXPIRY":     testBasicWithExpiry,
 	// "MULTIPLE ATTESTATIONS": testMultipleAttestations,
+	"BULK VERIFY": testBulkVerify,
 	// "BAD POLICY PERMISSION": testBadPolicyPermission,
 	// "BAD POLICY RESOURCE":   testBadPolicyResource,
 	// "BAD POLICY PSET":       testBadPolicyPset,
 	// "BAD POLICY NAMESPACE":  testBadPolicyNamespace,
-	"BAD POLICY SUBJECT:": testBadPolicySubject,
+	// "BAD POLICY SUBJECT:":   testBadPolicySubject,
+	// "BAD POLICY":	testBadPolicy,
 }
 
 var waveconn pb.WAVEClient
@@ -222,7 +224,7 @@ func checkVerification(DER []byte, spol *serdes.RTreePolicy, pbPol *pb.RTreePoli
 	}
 	if wveError == "" && enclaveError == "" {
 		if !waveTime.Equal(proofTime) {
-			expiryError = fmt.Sprintf("wave: %d enclave: %d", waveTime.String(), proofTime.String())
+			expiryError = fmt.Sprintf("wave: %s enclave: %s", waveTime, proofTime)
 		}
 	}
 
@@ -593,6 +595,11 @@ func testBadPolicySubject() TestVerifyError {
 	return checkVerification(proofresp.ProofDER, &spol, &pbPol, Src.Hash)
 }
 
+// tests proof which doesn't contain a superset of the needed policy
+// func testBadPolicy() TestVerifyError {
+
+// }
+
 // tests proof which contains multiple attestations
 func testMultipleAttestations() TestVerifyError {
 	attresp, err := waveconn.CreateAttestation(context.Background(), &pb.CreateAttestationParams{
@@ -887,31 +894,86 @@ func testBasicWithExpiry() TestVerifyError {
 	return checkVerification(proofresp.ProofDER, &spol, &pbPol, dst.Hash)
 }
 
+// tests memory management of enclave via verifying many proofs
+func testBulkVerify() TestVerifyError {
+	proofresp, err := waveconn.BuildRTreeProof(context.Background(), &pb.BuildRTreeProofParams{
+		Perspective: &pb.Perspective{
+			EntitySecret: &pb.EntitySecret{
+				DER: Dst.SecretDER,
+			},
+			Location: &pb.Location{
+				AgentLocation: "default",
+			},
+		},
+		SubjectHash: Dst.Hash,
+		Namespace:   Src.Hash,
+		Statements: []*pb.RTreePolicyStatement{
+			&pb.RTreePolicyStatement{
+				PermissionSet: Src.Hash,
+				Permissions:   []string{"default"},
+				Resource:      "default",
+			},
+		},
+	})
+	if err != nil {
+		panic(err)
+	}
+	if proofresp.Error != nil {
+		panic(proofresp.Error.Message)
+	}
+
+	ehash := iapi.HashSchemeInstanceFromMultihash(Src.Hash)
+	if !ehash.Supported() {
+		panic(wve.Err(wve.InvalidParameter, "bad namespace"))
+	}
+	ext := ehash.CanonicalForm()
+
+	spol := serdes.RTreePolicy{
+		Namespace: *ext,
+		Statements: []serdes.RTreeStatement{
+			{
+				PermissionSet: *ext,
+				Permissions:   []string{"default"},
+				Resource:      "default",
+			},
+		},
+	}
+
+	pbPol := pb.RTreePolicy{
+		Namespace: Src.Hash,
+		Statements: []*pb.RTreePolicyStatement{
+			&pb.RTreePolicyStatement{
+				PermissionSet: Src.Hash,
+				Permissions:   []string{"default"},
+				Resource:      "default",
+			},
+		},
+	}
+
+	for i := 0; i < 80; i++ {
+		fmt.Printf("Test Bulk Verify: Starting iteration %d\n", i)
+		if err := checkVerification(proofresp.ProofDER, &spol, &pbPol, Dst.Hash); err.wveError != "" || err.enclaveError != "" || err.expiryError != "" {
+			fmt.Printf("failed bulk verify on iteration %d\n", i)
+			return err
+		}
+	}
+	return TestVerifyError{
+		wveError:     "",
+		enclaveError: "",
+		expiryError:  "",
+	}
+}
+
 func main() {
 	var results []string
 	for name, test := range tests {
-		fmt.Println("======== TEST " + name + "========")
+		fmt.Println("======== TEST " + name + " ========")
 		if err := test(); err.wveError != "" || err.enclaveError != "" || err.expiryError != "" {
 			results = append(results, fmt.Sprintf("error in %s: %s", name, err.Error()))
 		}
-		fmt.Println("======== END " + name + "========")
+		fmt.Println("======== END " + name + " ========")
 	}
 	for _, result := range results {
 		fmt.Println(result)
 	}
-
-	// contents, err := ioutil.ReadFile("test.pem")
-	// if err != nil {
-	// 	fmt.Printf("could not read file %q: %v\n", "proof.pem", err)
-	// }
-	// block, _ := pem.Decode(contents)
-	// if block == nil {
-	// 	fmt.Printf("file %q is not a PEM file\n", "proof.pem")
-	// }
-
-	// proofPointer := unsafe.Pointer(&block.Bytes[0])
-	// proofDER := (*C.char)(proofPointer)
-	// proofSize := len(block.Bytes)
-	// fmt.Println(proofSize)
-	// C.verify(proofDER, C.ulong(proofSize), nil, 0, nil, 0)
 }

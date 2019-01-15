@@ -73,10 +73,11 @@ long ecall_verify_proof(char *proof_cipher, size_t proof_cipher_size, char *subj
 	auto [finalsubject, superset_ns, supersetStatements, expiry] = 
 		verify_rtree_proof(proof_cipher, proof_cipher_size);
 	if (finalsubject == nullptr) {
-		return verify_error("error in verify rtree proof");
+		ocall_print("error in verify rtree proof");
+		return -1;
 	}
 	ocall_print("verify_rtree_proof succeeded\n");
-
+	string returnStr;
 	// skipping checking attestations for expiry/revocation
 
 	// Check that proof policy is a superset of required policy
@@ -86,23 +87,36 @@ long ecall_verify_proof(char *proof_cipher, size_t proof_cipher_size, char *subj
 		WaveWireObject_t *wwoPtr = 0;
     	wwoPtr = (WaveWireObject_t *) unmarshal((uint8_t *) policyDER, policyDER_size, wwoPtr, &asn_DEF_WaveWireObject);
 		if (wwoPtr == nullptr) {
-			return verify_error("failed to unmarshal wave wire object");
+			returnStr = string("failed to unmarshal wave wire object");
+			expiry = -1;
+			goto returnLabel;
 		}
 		ANY_t type = wwoPtr->encoding.choice.single_ASN1_type;
 		RTreePolicy_t *policy = 0;
 		policy = (RTreePolicy_t *) unmarshal(type.buf, type.size, policy, &asn_DEF_RTreePolicy);
-        if (policy == nullptr) {
-           	return verify_error("unexpected error unmarshaling policy");
+        // free space on the heap for enclave
+		asn_DEF_WaveWireObject.op->free_struct(&asn_DEF_WaveWireObject, wwoPtr, ASFM_FREE_EVERYTHING);
+		if (policy == nullptr) {
+           	returnStr = string("unexpected error unmarshaling policy");
+			expiry = -1;
+			goto returnLabel;
         }
 
 		OCTET_STRING_t *lhs_ns = HashSchemeInstanceFor(policy);
 
 		// not doing multihash
 		if (OCTET_STRING_compare(&asn_DEF_OCTET_STRING, superset_ns, lhs_ns)) {
-			return verify_error("proof is well formed but namespaces don't match");
+			returnStr = string("proof is well formed but namespaces don't match");
+			expiry = -1;
+			goto returnLabel;
 		}
+		// free space on the heap for enclave
+		asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, superset_ns, ASFM_FREE_EVERYTHING);
+		asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, lhs_ns, ASFM_FREE_EVERYTHING);
 
 		RTreePolicy_t::RTreePolicy__statements policyStatements = policy->statements;
+		// free space on the heap for enclave
+		asn_DEF_RTreePolicy.op->free_struct(&asn_DEF_RTreePolicy, policy, ASFM_FREE_EVERYTHING);
 		int lhs_index = 0;
 		while (lhs_index < policyStatements.list.count) {
 			RTreeStatement_t *ls = policyStatements.list.array[lhs_index];
@@ -120,9 +134,9 @@ long ecall_verify_proof(char *proof_cipher, size_t proof_cipher_size, char *subj
 			// vector<RTreeStatementItem> super_policyStatements = superset_policy->get_statements();
 			int superset_index = 0;
 			bool superset = false;
-			while (superset_index < supersetStatements.size()) {
+			while (superset_index < supersetStatements->size()) {
 				// RTreeStatement_t *ss = super_policyStatements.list.array[superset_index];
-				RTreeStatementItem supersetStatement = supersetStatements[superset_index];
+				RTreeStatementItem supersetStatement = (*supersetStatements)[superset_index];
 				superset_index++;
 				// string superResource = string((const char *) ls->resource.buf, ls->resource.size);
 				// list<string> superPerms;
@@ -141,7 +155,9 @@ long ecall_verify_proof(char *proof_cipher, size_t proof_cipher_size, char *subj
 				}
 			}
 			if (!superset) {
-				return verify_error("proof is well formed but grants insufficient permissions");
+				returnStr = string("proof is well formed but grants insufficient permissions");
+				expiry = -1;
+				goto returnLabel;
 			}
 		}
 	}
@@ -150,12 +166,23 @@ long ecall_verify_proof(char *proof_cipher, size_t proof_cipher_size, char *subj
 	// Check subject
 	ocall_print("checking that subjects match\n");
 	if (memcmp(subject, finalsubject->buf, subj_size)) {
-		return verify_error("proof is well formed but subject does not match");
+		returnStr = string("proof is well formed but subject does not match");
+		expiry = -1;
+		goto returnLabel;
 	}
 	ocall_print("subjects match\n");
+	returnStr = string("verifying proof succeeded\n");
 
-	ocall_print("verifying proof succeeded\n");
-    return expiry;
+returnLabel:
+	ocall_print(returnStr.c_str());
+	// free space on the heap for enclave
+    asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, finalsubject, ASFM_FREE_EVERYTHING);
+	// asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, superset_ns, ASFM_FREE_EVERYTHING);
+	delete supersetStatements;
+	// for (auto & s: *supersetStatements) {
+	// 	asn_DEF_EntityHash.op->free_struct(&asn_DEF_EntityHash, s.get_permissionSet(), ASFM_FREE_EVERYTHING);
+	// }
+	return expiry;
 }
 
 /*
