@@ -28,16 +28,17 @@ import (
 type TestFunc func() TestVerifyError
 
 var tests = map[string]TestFunc{
-	// "BASIC":                 testBasic,
-	// "BASIC WITH EXPIRY":     testBasicWithExpiry,
+	"BASIC":             testBasic,
+	"BASIC WITH EXPIRY": testBasicWithExpiry,
 	// "MULTIPLE ATTESTATIONS": testMultipleAttestations,
-	"BULK VERIFY": testBulkVerify,
-	// "BAD POLICY PERMISSION": testBadPolicyPermission,
-	// "BAD POLICY RESOURCE":   testBadPolicyResource,
-	// "BAD POLICY PSET":       testBadPolicyPset,
-	// "BAD POLICY NAMESPACE":  testBadPolicyNamespace,
-	// "BAD POLICY SUBJECT:":   testBadPolicySubject,
-	// "BAD POLICY":	testBadPolicy,
+	// "BULK VERIFY":           testBulkVerify,
+	"BAD POLICY PERMISSION": testBadPolicyPermission,
+	"BAD POLICY RESOURCE":   testBadPolicyResource,
+	"BAD POLICY PSET":       testBadPolicyPset,
+	"BAD POLICY NAMESPACE":  testBadPolicyNamespace,
+	"BAD POLICY SUBJECT:":   testBadPolicySubject,
+	"BAD POLICY":            testBadPolicy,
+	"NO PERMISSIONS":        testNoPermissions,
 }
 
 var waveconn pb.WAVEClient
@@ -595,10 +596,121 @@ func testBadPolicySubject() TestVerifyError {
 	return checkVerification(proofresp.ProofDER, &spol, &pbPol, Src.Hash)
 }
 
-// tests proof which doesn't contain a superset of the needed policy
-// func testBadPolicy() TestVerifyError {
+// tests proof which doesn't contain a superset of the needed permissions
+func testBadPolicy() TestVerifyError {
+	proofresp, err := waveconn.BuildRTreeProof(context.Background(), &pb.BuildRTreeProofParams{
+		Perspective: &pb.Perspective{
+			EntitySecret: &pb.EntitySecret{
+				DER: Dst.SecretDER,
+			},
+			Location: &pb.Location{
+				AgentLocation: "default",
+			},
+		},
+		SubjectHash: Dst.Hash,
+		Namespace:   Src.Hash,
+		Statements: []*pb.RTreePolicyStatement{
+			&pb.RTreePolicyStatement{
+				PermissionSet: Src.Hash,
+				Permissions:   []string{"default"},
+				Resource:      "default",
+			},
+		},
+	})
+	if err != nil {
+		panic(err)
+	}
+	if proofresp.Error != nil {
+		panic(proofresp.Error.Message)
+	}
 
-// }
+	ehash := iapi.HashSchemeInstanceFromMultihash(Src.Hash)
+	if !ehash.Supported() {
+		panic(wve.Err(wve.InvalidParameter, "bad namespace"))
+	}
+	ext := ehash.CanonicalForm()
+
+	spol := serdes.RTreePolicy{
+		Namespace: *ext,
+		Statements: []serdes.RTreeStatement{
+			{
+				PermissionSet: *ext,
+				Permissions:   []string{"default", "extra"},
+				Resource:      "default",
+			},
+		},
+	}
+
+	pbPol := pb.RTreePolicy{
+		Namespace: Src.Hash,
+		Statements: []*pb.RTreePolicyStatement{
+			&pb.RTreePolicyStatement{
+				PermissionSet: Src.Hash,
+				Permissions:   []string{"default", "extra"},
+				Resource:      "default",
+			},
+		},
+	}
+	return checkVerification(proofresp.ProofDER, &spol, &pbPol, Dst.Hash)
+}
+
+// tests verifying policy of no permissions with proof
+func testNoPermissions() TestVerifyError {
+	proofresp, err := waveconn.BuildRTreeProof(context.Background(), &pb.BuildRTreeProofParams{
+		Perspective: &pb.Perspective{
+			EntitySecret: &pb.EntitySecret{
+				DER: Dst.SecretDER,
+			},
+			Location: &pb.Location{
+				AgentLocation: "default",
+			},
+		},
+		SubjectHash: Dst.Hash,
+		Namespace:   Src.Hash,
+		Statements: []*pb.RTreePolicyStatement{
+			&pb.RTreePolicyStatement{
+				PermissionSet: Src.Hash,
+				Permissions:   []string{"default"},
+				Resource:      "default",
+			},
+		},
+	})
+	if err != nil {
+		panic(err)
+	}
+	if proofresp.Error != nil {
+		panic(proofresp.Error.Message)
+	}
+
+	ehash := iapi.HashSchemeInstanceFromMultihash(Src.Hash)
+	if !ehash.Supported() {
+		panic(wve.Err(wve.InvalidParameter, "bad namespace"))
+	}
+	ext := ehash.CanonicalForm()
+
+	spol := serdes.RTreePolicy{
+		Namespace: *ext,
+		Statements: []serdes.RTreeStatement{
+			{
+				PermissionSet: *ext,
+				Permissions:   []string{},
+				Resource:      "default",
+			},
+		},
+	}
+
+	pbPol := pb.RTreePolicy{
+		Namespace: Src.Hash,
+		Statements: []*pb.RTreePolicyStatement{
+			&pb.RTreePolicyStatement{
+				PermissionSet: Src.Hash,
+				Permissions:   []string{},
+				Resource:      "default",
+			},
+		},
+	}
+	return checkVerification(proofresp.ProofDER, &spol, &pbPol, Dst.Hash)
+}
 
 // tests proof which contains multiple attestations
 func testMultipleAttestations() TestVerifyError {
