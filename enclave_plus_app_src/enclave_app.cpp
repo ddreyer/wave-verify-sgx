@@ -132,7 +132,6 @@ int init_enclave() {
 long verify(char *proof_cipher, size_t proof_cipher_size, char *subject, 
 	size_t subj_size, char *policyDER, size_t policyDER_size) {
 	long expiry;
-	printf("in verify\n");
 	sgx_status_t status = ecall_verify_proof(eid, &expiry, proof_cipher, proof_cipher_size, subject, 
 	subj_size, policyDER, policyDER_size);
 

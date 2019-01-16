@@ -37,7 +37,7 @@ sgx_status_t enclave_ra_init(sgx_ec256_public_t key, int b_pse,
 long ecall_verify_proof(char *proof_cipher, size_t proof_cipher_size, char *subject, 
 	size_t subj_size, char *policyDER, size_t policyDER_size) 
 {
-    ocall_print("Enclave: Inside enclave to verify the proof\n");
+    ocall_print("Inside enclave to verify the proof");
 	/* First, get symmetric key to decrypt */
 	/* TODO: sign message? */
 	/* TODO: use correct key */
@@ -76,7 +76,7 @@ long ecall_verify_proof(char *proof_cipher, size_t proof_cipher_size, char *subj
 		ocall_print("error in verify rtree proof");
 		return -1;
 	}
-	ocall_print("verify_rtree_proof succeeded\n");
+	ocall_print("\nverify_rtree_proof succeeded\n");
 	string returnStr;
 	// skipping checking attestations for expiry/revocation
 
@@ -164,24 +164,27 @@ long ecall_verify_proof(char *proof_cipher, size_t proof_cipher_size, char *subj
 	ocall_print("proof grants sufficient permissions\n");
 
 	// Check subject
-	ocall_print("checking that subjects match\n");
 	if (memcmp(subject, finalsubject->buf, subj_size)) {
 		returnStr = string("proof is well formed but subject does not match");
 		expiry = -1;
 		goto returnLabel;
 	}
 	ocall_print("subjects match\n");
-	returnStr = string("verifying proof succeeded\n");
+	returnStr = string("verifying proof succeeded");
 
 returnLabel:
 	ocall_print(returnStr.c_str());
 	// free space on the heap for enclave
     asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, finalsubject, ASFM_FREE_EVERYTHING);
 	// asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, superset_ns, ASFM_FREE_EVERYTHING);
-	delete supersetStatements;
 	// for (auto & s: *supersetStatements) {
 	// 	asn_DEF_EntityHash.op->free_struct(&asn_DEF_EntityHash, s.get_permissionSet(), ASFM_FREE_EVERYTHING);
 	// }
+	// delete supersetStatements;
+	// for (auto & pol: *pathpolicies) {
+    //     asn_DEF_RTreePolicy.op->free_struct(&asn_DEF_RTreePolicy, pol, ASFM_FREE_EVERYTHING);
+    // }
+	// delete pathpolicies;
 	return expiry;
 }
 
