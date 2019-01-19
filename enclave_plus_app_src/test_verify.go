@@ -33,16 +33,16 @@ var tests = map[string]TestFunc{
 	// "BASIC WITH OPTIONALS": testBasicWithOptionals,
 	// "MULTIPLE STATEMENTS": testMultipleStatements,
 	// "MULTIPLE ATTESTATIONS": testMultipleAttestations,
-	// "ATTESTATION CHAIN": testAttestationChain,
+	"ATTESTATION CHAIN": testAttestationChain,
 	// "RESOURCE PATHS": testResourcePaths,
 	// "NO PERMISSIONS": testNoPermissions,
 	/* tests that should cause errors */
-	"BAD POLICY PERMISSION": testBadPolicyPermission,
-	"BAD POLICY RESOURCE":   testBadPolicyResource,
-	"BAD POLICY PSET":       testBadPolicyPset,
-	"BAD POLICY NAMESPACE":  testBadPolicyNamespace,
-	"BAD POLICY SUBJECT":    testBadPolicySubject,
-	"BAD POLICY":            testBadPolicy,
+	// "BAD POLICY PERMISSION": testBadPolicyPermission,
+	// "BAD POLICY RESOURCE":   testBadPolicyResource,
+	// "BAD POLICY PSET":       testBadPolicyPset,
+	// "BAD POLICY NAMESPACE":  testBadPolicyNamespace,
+	// "BAD POLICY SUBJECT":    testBadPolicySubject,
+	// "BAD POLICY":            testBadPolicy,
 	/* enclave memory management test */
 	// "BULK VERIFY": testBulkVerify,
 }
@@ -1123,7 +1123,7 @@ func testAttestationChain() TestVerifyError {
 	prevEnt := Dst
 	var ent *pb.CreateEntityResponse
 	var err error
-	for i := 0; i < 1; i++ {
+	for i := 0; i < 2; i++ {
 		ent, err = waveconn.CreateEntity(context.Background(), &pb.CreateEntityParams{})
 		if err != nil {
 			panic(err)

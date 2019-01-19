@@ -95,7 +95,6 @@ long ecall_verify_proof(char *proof_cipher, size_t proof_cipher_size, char *subj
 		}
 		ANY_t type = wwoPtr->encoding.choice.single_ASN1_type;
 		policy = (RTreePolicy_t *) unmarshal(type.buf, type.size, policy, &asn_DEF_RTreePolicy);
-        // free space on the heap for enclave
 		asn_DEF_WaveWireObject.op->free_struct(&asn_DEF_WaveWireObject, wwoPtr, ASFM_FREE_EVERYTHING);
 		if (policy == nullptr) {
            	returnStr = string("unexpected error unmarshaling policy");
@@ -111,34 +110,24 @@ long ecall_verify_proof(char *proof_cipher, size_t proof_cipher_size, char *subj
 			expiry = -1;
 			goto returnLabel;
 		}
-		// free space on the heap for enclave
 		asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, lhs_ns, ASFM_FREE_EVERYTHING);
 
 		RTreePolicy_t::RTreePolicy__statements policyStatements = policy->statements;
 		int lhs_index = 0;
 		while (lhs_index < policyStatements.list.count) {
-			RTreeStatement_t *ls = policyStatements.list.array[lhs_index];
-            lhs_index++;
-			string leftResource = string((const char *) ls->resource.buf, ls->resource.size);
-			list<string> leftPerms;
-			int idx = 0;
-			while (idx < ls->permissions.list.count) {
-				UTF8String_t *perm = ls->permissions.list.array[idx];
-				idx++;
-				string permStr = string((const char *) perm->buf, perm->size);
-				leftPerms.push_back(permStr);
-			}
-			RTreeStatementItem leftStatement = RTreeStatementItem(&ls->permissionSet, leftPerms, leftResource);
+			RTreeStatementItem *leftStatement = statementToItem(policyStatements.list.array[lhs_index]);
+			lhs_index++;
 			int superset_index = 0;
 			bool superset = false;
 			while (superset_index < supersetStatements->size()) {
-				RTreeStatementItem supersetStatement = supersetStatements->at(superset_index);
+				RTreeStatementItem *supersetStatement = supersetStatements->at(superset_index);
 				superset_index++;
-				if (isStatementSupersetOf(&leftStatement, &supersetStatement)) {
+				if (isStatementSupersetOf(leftStatement, supersetStatement)) {
 					superset = true;
 					break;
 				}
 			}
+			delete leftStatement;
 			if (!superset) {
 				returnStr = string("proof is well formed but grants insufficient permissions");
 				expiry = -1;
@@ -159,7 +148,6 @@ long ecall_verify_proof(char *proof_cipher, size_t proof_cipher_size, char *subj
 
 returnLabel:
 	ocall_print(returnStr.c_str());
-	// free space on the heap for enclave
     asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, finalsubject, ASFM_FREE_EVERYTHING);
     asn_DEF_RTreePolicy.op->free_struct(&asn_DEF_RTreePolicy, policy, ASFM_FREE_EVERYTHING);
 	asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, superset_ns, ASFM_FREE_EVERYTHING);
@@ -167,6 +155,9 @@ returnLabel:
         asn_DEF_RTreePolicy.op->free_struct(&asn_DEF_RTreePolicy, pathpolicies->at(i), ASFM_FREE_EVERYTHING);
     }
 	delete pathpolicies;
+	for (int i = 0; i < supersetStatements->size(); i++) {
+		delete supersetStatements->at(i);
+	}
 	delete supersetStatements;
 	return expiry;
 }
