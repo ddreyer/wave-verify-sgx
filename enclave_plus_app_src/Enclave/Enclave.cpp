@@ -70,20 +70,22 @@ long ecall_verify_proof(char *proof_cipher, size_t proof_cipher_size, char *subj
 	// ocall_print("proof decryption succeeded");
 
 	// gofunc: VerifyProof
-	auto [finalsubject, superset_ns, supersetStatements, expiry] = 
+	auto [finalsubject, superset_ns, supersetStatements, expiry, pathpolicies] = 
 		verify_rtree_proof(proof_cipher, proof_cipher_size);
 	if (finalsubject == nullptr) {
-		ocall_print("error in verify rtree proof");
+		ocall_print("\nerror in verify rtree proof");
 		return -1;
 	}
 	ocall_print("\nverify_rtree_proof succeeded\n");
-	string returnStr;
+
 	// skipping checking attestations for expiry/revocation
 
 	// Check that proof policy is a superset of required policy
 	// gofunc: IsSubsetOf
-	if (policyDER == nullptr) {
-		ocall_print("comparing proof policy to required policy\n");
+	string returnStr;
+	RTreePolicy_t *policy = 0;
+	if (policyDER != nullptr) {
+		ocall_print("comparing proof policy to required policy");
 		WaveWireObject_t *wwoPtr = 0;
     	wwoPtr = (WaveWireObject_t *) unmarshal((uint8_t *) policyDER, policyDER_size, wwoPtr, &asn_DEF_WaveWireObject);
 		if (wwoPtr == nullptr) {
@@ -92,7 +94,6 @@ long ecall_verify_proof(char *proof_cipher, size_t proof_cipher_size, char *subj
 			goto returnLabel;
 		}
 		ANY_t type = wwoPtr->encoding.choice.single_ASN1_type;
-		RTreePolicy_t *policy = 0;
 		policy = (RTreePolicy_t *) unmarshal(type.buf, type.size, policy, &asn_DEF_RTreePolicy);
         // free space on the heap for enclave
 		asn_DEF_WaveWireObject.op->free_struct(&asn_DEF_WaveWireObject, wwoPtr, ASFM_FREE_EVERYTHING);
@@ -111,12 +112,9 @@ long ecall_verify_proof(char *proof_cipher, size_t proof_cipher_size, char *subj
 			goto returnLabel;
 		}
 		// free space on the heap for enclave
-		asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, superset_ns, ASFM_FREE_EVERYTHING);
 		asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, lhs_ns, ASFM_FREE_EVERYTHING);
 
 		RTreePolicy_t::RTreePolicy__statements policyStatements = policy->statements;
-		// free space on the heap for enclave
-		asn_DEF_RTreePolicy.op->free_struct(&asn_DEF_RTreePolicy, policy, ASFM_FREE_EVERYTHING);
 		int lhs_index = 0;
 		while (lhs_index < policyStatements.list.count) {
 			RTreeStatement_t *ls = policyStatements.list.array[lhs_index];
@@ -130,25 +128,12 @@ long ecall_verify_proof(char *proof_cipher, size_t proof_cipher_size, char *subj
 				string permStr = string((const char *) perm->buf, perm->size);
 				leftPerms.push_back(permStr);
 			}
-			// RTreePolicy_t::RTreePolicy__statements super_policyStatements = superset_policy.statements;
-			// vector<RTreeStatementItem> super_policyStatements = superset_policy->get_statements();
+			RTreeStatementItem leftStatement = RTreeStatementItem(&ls->permissionSet, leftPerms, leftResource);
 			int superset_index = 0;
 			bool superset = false;
 			while (superset_index < supersetStatements->size()) {
-				// RTreeStatement_t *ss = super_policyStatements.list.array[superset_index];
-				RTreeStatementItem supersetStatement = (*supersetStatements)[superset_index];
+				RTreeStatementItem supersetStatement = supersetStatements->at(superset_index);
 				superset_index++;
-				// string superResource = string((const char *) ls->resource.buf, ls->resource.size);
-				// list<string> superPerms;
-				// idx = 0;
-				// while (idx < ss->permissions.list.count) {
-				// 	UTF8String_t *perm = ss->permissions.list.array[idx];
-				// 	idx++;
-				// 	string permStr = string((const char *) perm->buf, perm->size);
-				// 	superPerms.push_back(permStr);
-				// }
-
-				RTreeStatementItem leftStatement = RTreeStatementItem(&ls->permissionSet, leftPerms, leftResource);
 				if (isStatementSupersetOf(&leftStatement, &supersetStatement)) {
 					superset = true;
 					break;
@@ -176,15 +161,13 @@ returnLabel:
 	ocall_print(returnStr.c_str());
 	// free space on the heap for enclave
     asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, finalsubject, ASFM_FREE_EVERYTHING);
-	// asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, superset_ns, ASFM_FREE_EVERYTHING);
-	// for (auto & s: *supersetStatements) {
-	// 	asn_DEF_EntityHash.op->free_struct(&asn_DEF_EntityHash, s.get_permissionSet(), ASFM_FREE_EVERYTHING);
-	// }
-	// delete supersetStatements;
-	// for (auto & pol: *pathpolicies) {
-    //     asn_DEF_RTreePolicy.op->free_struct(&asn_DEF_RTreePolicy, pol, ASFM_FREE_EVERYTHING);
-    // }
-	// delete pathpolicies;
+    asn_DEF_RTreePolicy.op->free_struct(&asn_DEF_RTreePolicy, policy, ASFM_FREE_EVERYTHING);
+	asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, superset_ns, ASFM_FREE_EVERYTHING);
+	for (int i = 0; i < pathpolicies->size(); i++) {
+        asn_DEF_RTreePolicy.op->free_struct(&asn_DEF_RTreePolicy, pathpolicies->at(i), ASFM_FREE_EVERYTHING);
+    }
+	delete pathpolicies;
+	delete supersetStatements;
 	return expiry;
 }
 
