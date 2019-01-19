@@ -29,13 +29,13 @@ type TestFunc func() TestVerifyError
 
 var tests = map[string]TestFunc{
 	/* tests that should not cause errors */
-	// "BASIC": testBasic,
+	// "BASIC":                testBasic,
 	// "BASIC WITH OPTIONALS": testBasicWithOptionals,
-	// "MULTIPLE STATEMENTS": testMultipleStatements,
+	// "MULTIPLE STATEMENTS":  testMultipleStatements,
 	// "MULTIPLE ATTESTATIONS": testMultipleAttestations,
 	"ATTESTATION CHAIN": testAttestationChain,
-	// "RESOURCE PATHS": testResourcePaths,
-	// "NO PERMISSIONS": testNoPermissions,
+	// "RESOURCE PATHS":    testResourcePaths,
+	// "NO PERMISSIONS":    testNoPermissions,
 	/* tests that should cause errors */
 	// "BAD POLICY PERMISSION": testBadPolicyPermission,
 	// "BAD POLICY RESOURCE":   testBadPolicyResource,
@@ -1123,7 +1123,7 @@ func testAttestationChain() TestVerifyError {
 	prevEnt := Dst
 	var ent *pb.CreateEntityResponse
 	var err error
-	for i := 0; i < 2; i++ {
+	for i := 0; i < 1; i++ {
 		ent, err = waveconn.CreateEntity(context.Background(), &pb.CreateEntityParams{})
 		if err != nil {
 			panic(err)
@@ -1419,7 +1419,7 @@ func testBulkVerify() TestVerifyError {
 		},
 	}
 
-	for i := 0; i < 80; i++ {
+	for i := 0; i < 500; i++ {
 		fmt.Printf("Test Bulk Verify: Starting iteration %d\n", i)
 		if err := checkVerification(proofresp.ProofDER, &spol, &pbPol, Dst.Hash); err.wveError != "" || err.enclaveError != "" || err.expiryError != "" {
 			fmt.Printf("failed bulk verify on iteration %d\n", i)
