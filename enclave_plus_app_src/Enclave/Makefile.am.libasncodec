@@ -12,8 +12,8 @@ ASN_MODULE_SRCS=	\
 	wave-verify/asn1c_files/WaveEntitySecret.c	\
 	wave-verify/asn1c_files/EntityKeyring.c	\
 	wave-verify/asn1c_files/EntityKeyringEntry.c	\
-	wave-verify/asn1c_files/BN256OAQUEKeyringBundle.c	\
-	wave-verify/asn1c_files/BN256OAQUEBundleEntry.c	\
+	wave-verify/asn1c_files/BLS12381OAQUEKeyringBundle.c	\
+	wave-verify/asn1c_files/BLS12381OAQUEBundleEntry.c	\
 	wave-verify/asn1c_files/EntityPrivateKey.c	\
 	wave-verify/asn1c_files/EntityPublicKey.c	\
 	wave-verify/asn1c_files/Capability.c	\
@@ -33,6 +33,7 @@ ASN_MODULE_SRCS=	\
 	wave-verify/asn1c_files/LocationURL.c	\
 	wave-verify/asn1c_files/LocationEthereum.c	\
 	wave-verify/asn1c_files/PSKBodyCiphertext.c	\
+	wave-verify/asn1c_files/WaveNameDeclaration.c	\
 	wave-verify/asn1c_files/NameDeclarationKey.c	\
 	wave-verify/asn1c_files/NameDeclarationBody.c	\
 	wave-verify/asn1c_files/NameDeclarationKeyNone.c	\
@@ -47,19 +48,20 @@ ASN_MODULE_SRCS=	\
 	wave-verify/asn1c_files/SignedOuterKey.c	\
 	wave-verify/asn1c_files/SignedOuterKeyTbs.c	\
 	wave-verify/asn1c_files/TrustLevel.c	\
+	wave-verify/asn1c_files/CommitmentRevocationOption.c	\
 	wave-verify/asn1c_files/AVKeyAES128-GCM.c	\
 	wave-verify/asn1c_files/Private-Ed25519.c	\
 	wave-verify/asn1c_files/Private-Curve25519.c	\
-	wave-verify/asn1c_files/Private-BN256-OAQUE.c	\
-	wave-verify/asn1c_files/Private-BN256-IBE.c	\
-	wave-verify/asn1c_files/Master-BN256-OAQUE.c	\
-	wave-verify/asn1c_files/Master-BN256-IBE.c	\
+	wave-verify/asn1c_files/Private-BLS12381-OAQUE.c	\
+	wave-verify/asn1c_files/Private-BLS12381-IBE.c	\
+	wave-verify/asn1c_files/Master-BLS12381-OAQUE.c	\
+	wave-verify/asn1c_files/Master-BLS12381-IBE.c	\
 	wave-verify/asn1c_files/Public-Ed25519.c	\
 	wave-verify/asn1c_files/Public-Curve25519.c	\
 	wave-verify/asn1c_files/Public-OAQUE.c	\
-	wave-verify/asn1c_files/Params-BN256-OAQUE.c	\
-	wave-verify/asn1c_files/Params-BN256-IBE.c	\
-	wave-verify/asn1c_files/Public-BN256-IBE.c	\
+	wave-verify/asn1c_files/Params-BLS12381-OAQUE.c	\
+	wave-verify/asn1c_files/Params-BLS12381-IBE.c	\
+	wave-verify/asn1c_files/Public-BLS12381-IBE.c	\
 	wave-verify/asn1c_files/KeyringAESCiphertext.c	\
 	wave-verify/asn1c_files/MessageKeyCurve25519ECDH.c	\
 	wave-verify/asn1c_files/MessageKeyWR1.c	\

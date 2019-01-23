@@ -29,22 +29,22 @@ type TestFunc func() TestVerifyError
 
 var tests = map[string]TestFunc{
 	/* tests that should not cause errors */
-	// "BASIC":                testBasic,
-	// "BASIC WITH OPTIONALS": testBasicWithOptionals,
-	// "MULTIPLE STATEMENTS":  testMultipleStatements,
-	// "MULTIPLE ATTESTATIONS": testMultipleAttestations,
-	"ATTESTATION CHAIN": testAttestationChain,
-	// "RESOURCE PATHS":    testResourcePaths,
-	// "NO PERMISSIONS":    testNoPermissions,
+	"BASIC":                 testBasic,
+	"BASIC WITH OPTIONALS":  testBasicWithOptionals,
+	"MULTIPLE STATEMENTS":   testMultipleStatements,
+	"MULTIPLE ATTESTATIONS": testMultipleAttestations,
+	"ATTESTATION CHAIN":     testAttestationChain,
+	"RESOURCE PATHS":        testResourcePaths,
+	"NO PERMISSIONS":        testNoPermissions,
 	/* tests that should cause errors */
-	// "BAD POLICY PERMISSION": testBadPolicyPermission,
-	// "BAD POLICY RESOURCE":   testBadPolicyResource,
-	// "BAD POLICY PSET":       testBadPolicyPset,
-	// "BAD POLICY NAMESPACE":  testBadPolicyNamespace,
-	// "BAD POLICY SUBJECT":    testBadPolicySubject,
-	// "BAD POLICY":            testBadPolicy,
+	"BAD POLICY PERMISSION": testBadPolicyPermission,
+	"BAD POLICY RESOURCE":   testBadPolicyResource,
+	"BAD POLICY PSET":       testBadPolicyPset,
+	"BAD POLICY NAMESPACE":  testBadPolicyNamespace,
+	"BAD POLICY SUBJECT":    testBadPolicySubject,
+	"BAD POLICY":            testBadPolicy,
 	/* enclave memory management test */
-	// "BULK VERIFY": testBulkVerify,
+	"BULK VERIFY": testBulkVerify,
 }
 
 var waveconn pb.WAVEClient
@@ -1053,11 +1053,11 @@ func testMultipleAttestations() TestVerifyError {
 				Permissions:   []string{"default2"},
 				Resource:      "default",
 			},
-			&pb.RTreePolicyStatement{
-				PermissionSet: Src.Hash,
-				Permissions:   []string{"default3"},
-				Resource:      "default",
-			},
+			// &pb.RTreePolicyStatement{
+			// 	PermissionSet: Src.Hash,
+			// 	Permissions:   []string{"default3"},
+			// 	Resource:      "default",
+			// },
 		},
 		ResyncFirst: true,
 	})
@@ -1087,11 +1087,11 @@ func testMultipleAttestations() TestVerifyError {
 				Permissions:   []string{"default2"},
 				Resource:      "default",
 			},
-			{
-				PermissionSet: *ext,
-				Permissions:   []string{"default3"},
-				Resource:      "default",
-			},
+			// {
+			// 	PermissionSet: *ext,
+			// 	Permissions:   []string{"default3"},
+			// 	Resource:      "default",
+			// },
 		},
 	}
 
@@ -1108,11 +1108,11 @@ func testMultipleAttestations() TestVerifyError {
 				Permissions:   []string{"default2"},
 				Resource:      "default",
 			},
-			&pb.RTreePolicyStatement{
-				PermissionSet: Src.Hash,
-				Permissions:   []string{"default3"},
-				Resource:      "default",
-			},
+			// &pb.RTreePolicyStatement{
+			// 	PermissionSet: Src.Hash,
+			// 	Permissions:   []string{"default3"},
+			// 	Resource:      "default",
+			// },
 		},
 	}
 	return checkVerification(proofresp.ProofDER, &spol, &pbPol, Dst.Hash)
