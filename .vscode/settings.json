@@ -91,6 +91,7 @@
         "cinttypes": "cpp",
         "iterator": "cpp",
         "__locale": "cpp",
-        "__tuple": "cpp"
+        "__tuple": "cpp",
+        "__hash_table": "cpp"
     }
 }

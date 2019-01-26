@@ -10,6 +10,7 @@ import "C"
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"os"
 	"strconv"
 	"strings"
@@ -43,8 +44,10 @@ var tests = map[string]TestFunc{
 	"BAD POLICY NAMESPACE":  testBadPolicyNamespace,
 	"BAD POLICY SUBJECT":    testBadPolicySubject,
 	"BAD POLICY":            testBadPolicy,
-	/* enclave memory management test */
-	"BULK VERIFY": testBulkVerify,
+	/* enclave memory management tests */
+	"BULK VERIFY":                testBulkVerify,
+	"BULK INVALID PROOF VERIFY":  testBulkInvalidProofVerify,
+	"BULK INVALID POLICY VERIFY": testBulkInvalidPolicyVerify,
 }
 
 var waveconn pb.WAVEClient
@@ -162,6 +165,11 @@ func checkVerification(DER []byte, spol *serdes.RTreePolicy, pbPol *pb.RTreePoli
 	}
 	if verifyresp.Error != nil {
 		wveError = verifyresp.Error.Message
+	}
+	if wveError == "" {
+		fmt.Println("WAVE verify PASSED")
+	} else {
+		fmt.Println("WAVE verify FAILED")
 	}
 	waveTime := time.Unix(verifyresp.Result.GetExpiry()/1e3, 0)
 
@@ -1423,6 +1431,145 @@ func testBulkVerify() TestVerifyError {
 		fmt.Printf("Test Bulk Verify: Starting iteration %d\n", i)
 		if err := checkVerification(proofresp.ProofDER, &spol, &pbPol, Dst.Hash); err.wveError != "" || err.enclaveError != "" || err.expiryError != "" {
 			fmt.Printf("failed bulk verify on iteration %d\n", i)
+			return err
+		}
+	}
+	return TestVerifyError{
+		wveError:     "",
+		enclaveError: "",
+		expiryError:  "",
+	}
+}
+
+// tests memory management of enclave by trying to verify many invalid proofs
+func testBulkInvalidProofVerify() TestVerifyError {
+	proofresp, err := waveconn.BuildRTreeProof(context.Background(), &pb.BuildRTreeProofParams{
+		Perspective: &pb.Perspective{
+			EntitySecret: &pb.EntitySecret{
+				DER: Dst.SecretDER,
+			},
+		},
+		SubjectHash: Dst.Hash,
+		Namespace:   Src.Hash,
+		Statements: []*pb.RTreePolicyStatement{
+			&pb.RTreePolicyStatement{
+				PermissionSet: Src.Hash,
+				Permissions:   []string{"default"},
+				Resource:      "default",
+			},
+		},
+		ResyncFirst: true,
+	})
+	if err != nil {
+		panic(err)
+	}
+	if proofresp.Error != nil {
+		panic(proofresp.Error.Message)
+	}
+
+	ehash := iapi.HashSchemeInstanceFromMultihash(Src.Hash)
+	if !ehash.Supported() {
+		panic(wve.Err(wve.InvalidParameter, "bad namespace"))
+	}
+	ext := ehash.CanonicalForm()
+
+	spol := serdes.RTreePolicy{
+		Namespace: *ext,
+		Statements: []serdes.RTreeStatement{
+			{
+				PermissionSet: *ext,
+				Permissions:   []string{"default"},
+				Resource:      "default",
+			},
+		},
+	}
+
+	pbPol := pb.RTreePolicy{
+		Namespace: Src.Hash,
+		Statements: []*pb.RTreePolicyStatement{
+			&pb.RTreePolicyStatement{
+				PermissionSet: Src.Hash,
+				Permissions:   []string{"default"},
+				Resource:      "default",
+			},
+		},
+	}
+
+	proofCopy := make([]byte, len(proofresp.ProofDER))
+	garbage := []byte("garbagegarbage")
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	for i := 0; i < 500; i++ {
+		fmt.Printf("Test Bulk Invalid Proof Verify: Starting iteration %d\n", i)
+		copy(proofCopy, proofresp.ProofDER)
+		ind := r.Intn(len(proofCopy) - 14)
+		copy(proofCopy[ind:ind+14], garbage)
+		checkVerification(proofCopy, &spol, &pbPol, Dst.Hash)
+	}
+	return TestVerifyError{
+		wveError:     "",
+		enclaveError: "",
+		expiryError:  "",
+	}
+}
+
+// tests memory management of enclave by trying to verify many proofs with an invalid policy
+func testBulkInvalidPolicyVerify() TestVerifyError {
+	proofresp, err := waveconn.BuildRTreeProof(context.Background(), &pb.BuildRTreeProofParams{
+		Perspective: &pb.Perspective{
+			EntitySecret: &pb.EntitySecret{
+				DER: Dst.SecretDER,
+			},
+		},
+		SubjectHash: Dst.Hash,
+		Namespace:   Src.Hash,
+		Statements: []*pb.RTreePolicyStatement{
+			&pb.RTreePolicyStatement{
+				PermissionSet: Src.Hash,
+				Permissions:   []string{"default"},
+				Resource:      "default",
+			},
+		},
+		ResyncFirst: true,
+	})
+	if err != nil {
+		panic(err)
+	}
+	if proofresp.Error != nil {
+		panic(proofresp.Error.Message)
+	}
+
+	ehash := iapi.HashSchemeInstanceFromMultihash(Src.Hash)
+	if !ehash.Supported() {
+		panic(wve.Err(wve.InvalidParameter, "bad namespace"))
+	}
+	ext := ehash.CanonicalForm()
+
+	spol := serdes.RTreePolicy{
+		Namespace: *ext,
+		Statements: []serdes.RTreeStatement{
+			{
+				PermissionSet: *ext,
+				Permissions:   []string{"garbage"},
+				Resource:      "default",
+			},
+		},
+	}
+
+	pbPol := pb.RTreePolicy{
+		Namespace: Src.Hash,
+		Statements: []*pb.RTreePolicyStatement{
+			&pb.RTreePolicyStatement{
+				PermissionSet: Src.Hash,
+				Permissions:   []string{"garbage"},
+				Resource:      "default",
+			},
+		},
+	}
+
+	for i := 0; i < 500; i++ {
+		fmt.Printf("Test Bulk Invalid Policy Verify: Starting iteration %d\n", i)
+		if err := checkVerification(proofresp.ProofDER, &spol, &pbPol, Dst.Hash); err.wveError == "" || err.enclaveError == "" {
+			fmt.Printf("failed bulk invalid policy verify on iteration %d\n", i)
 			return err
 		}
 	}
