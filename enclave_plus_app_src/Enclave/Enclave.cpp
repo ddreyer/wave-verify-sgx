@@ -38,11 +38,11 @@ sgx_status_t enclave_ra_init(sgx_ec256_public_t key, int b_pse,
 long ecall_verify_proof(char *proof_cipher, size_t proof_cipher_size, char *subject, 
 	size_t subj_size, char *policyDER, size_t policyDER_size) 
 {
-    ocall_print("Inside enclave to verify the proof");
+    enclave_print("Inside enclave to verify the proof");
 	/* First, get symmetric key to decrypt */
 	/* TODO: sign message? */
 	/* TODO: use correct key */
-	// ocall_print("Decrypting proof\n");
+	// enclave_print("Decrypting proof\n");
 	// sgx_ra_key_128_t k;
 	// sgx_status_t status = sgx_ra_get_keys(ctx, SGX_RA_KEY_SK, &k);
 	// sgx_ra_key_128_t *k = (sgx_ra_key_128_t *)"0123456789012345";
@@ -52,29 +52,29 @@ long ecall_verify_proof(char *proof_cipher, size_t proof_cipher_size, char *subj
 	// int outlen, ret;
 	// unsigned char decrypted[proof_cipher_size];
 	// if (!(kctx = EVP_CIPHER_CTX_new())) {
-	// 	ocall_print("error initializing crypto");
+	// 	enclave_print("error initializing crypto");
 	// 	return SGX_ERROR_UNEXPECTED;
 	// }
 	// /* Select cipher */
 	// if (1 != EVP_DecryptInit_ex(kctx, EVP_aes_128_gcm(), NULL, 
 	// 	(const unsigned char *) k, iv)) {
-	// 	ocall_print("error initializing decryption");
+	// 	enclave_print("error initializing decryption");
 	// 	return SGX_ERROR_UNEXPECTED;
 	// }
 	// /* Decrypt ciphertext */
 	// if (1 != EVP_DecryptUpdate(kctx, decrypted, &outlen, 
 	// 	(const unsigned char *) proof_cipher, cipher_size)) {
-	// 	ocall_print("error decrypting proof");
+	// 	enclave_print("error decrypting proof");
 	// 	return SGX_ERROR_UNEXPECTED;
 	// }
 	// EVP_CIPHER_CTX_free(kctx);
-	// ocall_print("proof decryption succeeded");
+	// enclave_print("proof decryption succeeded");
 
 	// gofunc: VerifyProof
 	auto [finalsubject, superset_ns, supersetStatements, expiry, pathpolicies] = 
 		verify_rtree_proof(proof_cipher, proof_cipher_size);
 	if (expiry == -1) {
-		ocall_print("\nerror in verify rtree proof");
+		enclave_print("\nerror in verify rtree proof");
 		return -1;
 	}
 
@@ -83,7 +83,7 @@ long ecall_verify_proof(char *proof_cipher, size_t proof_cipher_size, char *subj
 	string returnStr = string("verifying proof succeeded");;
 	RTreePolicy_t *policy = 0;
 	if (policyDER != nullptr) {
-		ocall_print("comparing proof policy to required policy");
+		enclave_print("comparing proof policy to required policy");
 		WaveWireObject_t *wwoPtr = 0;
     	wwoPtr = (WaveWireObject_t *) unmarshal((uint8_t *) policyDER, policyDER_size, wwoPtr, &asn_DEF_WaveWireObject);
 		if (wwoPtr == nullptr) {
@@ -129,20 +129,20 @@ long ecall_verify_proof(char *proof_cipher, size_t proof_cipher_size, char *subj
 			}
 		}
 	}
-	ocall_print("proof grants sufficient permissions\n");
+	enclave_print("proof grants sufficient permissions\n");
 
 	// Check subject
 	if (memcmp(subject, finalsubject->buf, subj_size)) {
 		returnStr = string("proof is well formed but subject does not match");
 		goto errorReturn;
 	}
-	ocall_print("subjects match\n");
+	enclave_print("subjects match\n");
 	goto Return;
 
 errorReturn:
 	expiry = -1;
 Return:
-	ocall_print(returnStr.c_str());
+	enclave_print(returnStr.c_str());
     asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, finalsubject, ASFM_FREE_EVERYTHING);
     asn_DEF_RTreePolicy.op->free_struct(&asn_DEF_RTreePolicy, policy, ASFM_FREE_EVERYTHING);
 	asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, superset_ns, ASFM_FREE_EVERYTHING);

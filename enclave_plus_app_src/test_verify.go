@@ -13,7 +13,6 @@ import (
 	"math/rand"
 	"os"
 	"strconv"
-	"strings"
 	"time"
 	"unsafe"
 
@@ -161,16 +160,14 @@ func checkVerification(DER []byte, spol *serdes.RTreePolicy, pbPol *pb.RTreePoli
 		RequiredRTreePolicy: pbPol,
 	})
 	if err != nil {
+		fmt.Println("WAVE verify FAILED")
 		wveError = wve.ErrW(wve.ProofInvalid, "failed to WAVE verify proof", err).Error()
 	}
 	if verifyresp.Error != nil {
+		fmt.Println("WAVE verify FAILED")
 		wveError = verifyresp.Error.Message
 	}
-	if wveError == "" {
-		fmt.Println("WAVE verify PASSED")
-	} else {
-		fmt.Println("WAVE verify FAILED")
-	}
+	fmt.Println("WAVE verify PASSED")
 	waveTime := time.Unix(verifyresp.Result.GetExpiry()/1e3, 0)
 
 	//This is not important
@@ -1581,19 +1578,45 @@ func testBulkInvalidPolicyVerify() TestVerifyError {
 }
 
 func main() {
-	var results []string
-	for name, test := range tests {
-		fmt.Println("======== BEGIN TEST " + name + " ========")
-		err := test()
-		if !strings.Contains(name, "BAD") && (err.wveError != "" || err.enclaveError != "" || err.expiryError != "") {
-			results = append(results, fmt.Sprintf("error in %s: %s", name, err.Error()))
-		}
-		if strings.Contains(name, "BAD") && (err.wveError == "" || err.enclaveError == "") {
-			results = append(results, fmt.Sprintf("error in %s: %s", name, err.Error()))
-		}
-		fmt.Println("======== END TEST " + name + " ========")
+	resp, err := waveconn.EncryptMessage(context.Background(), &pb.EncryptMessageParams{
+		Namespace: Src.Hash,
+		Resource:  "foo",
+		Content:   []byte("hello world"),
+	})
+	if err != nil {
+		panic(err)
 	}
-	for _, result := range results {
-		fmt.Println(result)
+	if resp.Error != nil {
+		panic(resp.Error.Message)
 	}
+	dec, err := waveconn.DecryptMessage(context.Background(), &pb.DecryptMessageParams{
+		Perspective: &pb.Perspective{
+			EntitySecret: &pb.EntitySecret{
+				DER: Dst.SecretDER,
+			},
+		},
+		Ciphertext:  resp.Ciphertext,
+		ResyncFirst: true,
+	})
+	if err != nil {
+		panic(err)
+	}
+	if dec.Error != nil {
+		panic(dec.Error.Message)
+	}
+	// var results []string
+	// for name, test := range tests {
+	// 	fmt.Println("======== BEGIN TEST " + name + " ========")
+	// 	err := test()
+	// 	if !strings.Contains(name, "BAD") && (err.wveError != "" || err.enclaveError != "" || err.expiryError != "") {
+	// 		results = append(results, fmt.Sprintf("error in %s: %s", name, err.Error()))
+	// 	}
+	// 	if strings.Contains(name, "BAD") && (err.wveError == "" || err.enclaveError == "") {
+	// 		results = append(results, fmt.Sprintf("error in %s: %s", name, err.Error()))
+	// 	}
+	// 	fmt.Println("======== END TEST " + name + " ========")
+	// }
+	// for _, result := range results {
+	// 	fmt.Println(result)
+	// }
 }
