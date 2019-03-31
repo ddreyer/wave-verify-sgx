@@ -30,7 +30,7 @@
     * /home/sgx/linux-sgx/linux/installer/bin/sgxsdk/sdk_libs
 ```
   $ make
-  $ g++ -shared *.o ../utils/*.o -L/home/sgx/linux-sgx/linux/installer/bin/sgxsdk/lib64 -L/opt/openssl/1.1.0i/lib -L/opt/intel/sgxssl/lib64   -lsgx_urts -lsgx_ukey_exchange -lsgx_uae_service -lcrypto -l:libsgx_capable.a -lpthread -ldl -lsgx_usgxssl -o libtee.so
+  $ g++ -shared *.o ../utils/*.o -L/home/sgx/linux-sgx/linux/installer/bin/sgxsdk/lib64 -L/opt/openssl/1.1.0i/lib -L/opt/intel/sgxssl/lib64   -lsgx_urts -lsgx_ukey_exchange -lsgx_uae_service -lcrypto -l:libsgx_capable.a -lpthread -ldl -lsgx_usgxssl -o libverify.so
   ```
 
 ## TODO

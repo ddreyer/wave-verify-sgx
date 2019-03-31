@@ -127,6 +127,34 @@ int init_enclave() {
 		return 1;
 	}
 #endif
+	status = ecall_instantiate_key(eid, &sgxrv);
+	if (status != SGX_SUCCESS) {
+		fprintf(stderr, "ecall_instantiate_key: %s: %08x\n",
+			ENCLAVE_NAME, status);
+		return 1;
+	}
+	return 0;
+}
+
+int destroy_enclave() {
+	sgx_status_t status = sgx_destroy_enclave(eid);
+	if (status != SGX_SUCCESS) {
+		fprintf(stderr, "sgx_destroy_enclave: %s: %08x\n",
+			ENCLAVE_NAME, status);
+		return 1;
+	}
+	return 0;
+}
+
+int provision_key(char *key, char *iv) {
+	sgx_status_t sgxrv;
+	sgx_status_t status = ecall_provision_key(eid, &sgxrv, key, iv);
+
+	if (status != SGX_SUCCESS) {
+		fprintf(stderr, "ecall_provision_key: %08x\n", status);
+		return 1;
+	}
+	return 0;
 }
 
 long verify(char *proof_cipher, size_t proof_cipher_size, char *subject, 

@@ -1,4 +1,3 @@
-// junk.h
 #ifndef __ENCLAVEAPP_HPP__
 #define __ENCLAVEAPP_HPP__
 
@@ -42,7 +41,11 @@ extern "C" {
     long verify(char *proof_cipher, size_t proof_cipher_size, char *subject, 
 	    size_t subj_size, char *policyDER, size_t policyDER_size);
 
+    int provision_key(char *key, char *iv);
+    
     int init_enclave();
+
+    int destroy_enclave();
 
     int generate0and1();
 

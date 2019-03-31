@@ -13,10 +13,12 @@ import (
 	"math/rand"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 	"unsafe"
 
 	"github.com/immesys/asn1"
+	"github.com/immesys/wave/consts"
 	"github.com/immesys/wave/eapi"
 	"github.com/immesys/wave/eapi/pb"
 	"github.com/immesys/wave/iapi"
@@ -29,29 +31,35 @@ type TestFunc func() TestVerifyError
 
 var tests = map[string]TestFunc{
 	/* tests that should not cause errors */
-	"BASIC":                 testBasic,
-	"BASIC WITH OPTIONALS":  testBasicWithOptionals,
-	"MULTIPLE STATEMENTS":   testMultipleStatements,
-	"MULTIPLE ATTESTATIONS": testMultipleAttestations,
-	"ATTESTATION CHAIN":     testAttestationChain,
-	"RESOURCE PATHS":        testResourcePaths,
-	"NO PERMISSIONS":        testNoPermissions,
-	/* tests that should cause errors */
-	"BAD POLICY PERMISSION": testBadPolicyPermission,
-	"BAD POLICY RESOURCE":   testBadPolicyResource,
-	"BAD POLICY PSET":       testBadPolicyPset,
-	"BAD POLICY NAMESPACE":  testBadPolicyNamespace,
-	"BAD POLICY SUBJECT":    testBadPolicySubject,
-	"BAD POLICY":            testBadPolicy,
-	/* enclave memory management tests */
-	"BULK VERIFY":                testBulkVerify,
-	"BULK INVALID PROOF VERIFY":  testBulkInvalidProofVerify,
-	"BULK INVALID POLICY VERIFY": testBulkInvalidPolicyVerify,
+	"BASIC": testBasic,
+	// "BASIC SEALING": testBasicSealing,
+	// "BASIC WITH OPTIONALS":  testBasicWithOptionals,
+	// "MULTIPLE STATEMENTS":   testMultipleStatements,
+	// "MULTIPLE ATTESTATIONS": testMultipleAttestations,
+	// "ATTESTATION CHAIN":     testAttestationChain,
+	// "RESOURCE PATHS":        testResourcePaths,
+	// "NO PERMISSIONS": testNoPermissions,
+	// /* tests that should cause errors */
+	// "BAD POLICY PERMISSION": testBadPolicyPermission,
+	// "BAD POLICY RESOURCE":   testBadPolicyResource,
+	// "BAD POLICY PSET":       testBadPolicyPset,
+	// "BAD POLICY NAMESPACE":  testBadPolicyNamespace,
+	// "BAD POLICY SUBJECT":    testBadPolicySubject,
+	// "BAD POLICY": testBadPolicy,
+	// /* enclave memory management tests */
+	// "BULK VERIFY":                testBulkVerify,
+	// "BULK INVALID PROOF VERIFY":  testBulkInvalidProofVerify,
+	// "BULK INVALID POLICY VERIFY": testBulkInvalidPolicyVerify,
+	// /* tests that should fail due to unimplemented features
+	// "EXPIRED PROOF"
+	// "REVOKED ATTESTATION"
 }
 
 var waveconn pb.WAVEClient
 var Src *pb.CreateEntityResponse
 var Dst *pb.CreateEntityResponse
+var Key []byte
+var Iv []byte
 
 type TestVerifyError struct {
 	wveError     string
@@ -146,6 +154,71 @@ func init() {
 	if attresp.Error != nil {
 		panic(attresp.Error.Message)
 	}
+
+	attresp, err = waveconn.CreateAttestation(context.Background(), &pb.CreateAttestationParams{
+		Perspective: &pb.Perspective{
+			EntitySecret: &pb.EntitySecret{
+				DER: Src.SecretDER,
+			},
+		},
+		SubjectHash: Dst.Hash,
+		Policy: &pb.Policy{
+			RTreePolicy: &pb.RTreePolicy{
+				Namespace:    Src.Hash,
+				Indirections: 20,
+				Statements: []*pb.RTreePolicyStatement{
+					&pb.RTreePolicyStatement{
+						PermissionSet: []byte(consts.WaveBuiltinPSET),
+						Permissions:   []string{consts.WaveBuiltinE2EE},
+						Resource:      "*",
+					},
+				},
+			},
+		},
+		Publish: true,
+	})
+	if err != nil {
+		panic(err)
+	}
+	if attresp.Error != nil {
+		panic(attresp.Error.Message)
+	}
+
+	encresp, err := waveconn.EncryptMessage(context.Background(), &pb.EncryptMessageParams{
+		Namespace: Src.Hash,
+		Resource:  "wavemq",
+		Content:   []byte("whatever"),
+	})
+	if err != nil {
+		panic(err)
+	}
+	if encresp.Error != nil {
+		panic(encresp.Error.Message)
+	}
+
+	resp, err := waveconn.GetDecryptKey(context.Background(), &pb.DecryptMessageParams{
+		Perspective: &pb.Perspective{
+			EntitySecret: &pb.EntitySecret{
+				DER: Dst.SecretDER,
+			},
+		},
+		Ciphertext:  encresp.Ciphertext,
+		ResyncFirst: true,
+	})
+	if err != nil {
+		panic(err)
+	}
+	if resp.Error != nil {
+		panic(resp.Error.Message)
+	}
+	Key = resp.Content[:16]
+	Iv = resp.Content[16:]
+	k := (*C.char)(unsafe.Pointer(&Key[0]))
+	i := (*C.char)(unsafe.Pointer(&Iv[0]))
+	ret = C.provision_key(k, i)
+	if int32(ret) != 0 {
+		panic("Could not provision key")
+	}
 }
 
 // verifies proof using waved and enclave
@@ -154,20 +227,43 @@ func checkVerification(DER []byte, spol *serdes.RTreePolicy, pbPol *pb.RTreePoli
 	var enclaveError string
 	var expiryError string
 	var proofTime time.Time
+
+	fmt.Println("key")
+	fmt.Println(string(Key))
+	fmt.Println("iv")
+	fmt.Println(string(Iv))
+	plaintext, e := iapi.AesGCMDecrypt(Key, DER, Iv)
+	if !e {
+		panic(e)
+	}
+	// decresp, err := waveconn.DecryptProof(context.Background(), &pb.DecryptMessageParams{
+	// 	Perspective: &pb.Perspective{
+	// 		EntitySecret: &pb.EntitySecret{
+	// 			DER: Dst.SecretDER,
+	// 		},
+	// 	},
+	// 	Ciphertext: DER,
+	// })
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// if decresp.Error != nil {
+	// 	panic(decresp.Error.Message)
+	// }
 	verifyresp, err := waveconn.VerifyProof(context.Background(), &pb.VerifyProofParams{
-		ProofDER:            DER,
+		ProofDER:            plaintext,
 		Subject:             subjectHash,
 		RequiredRTreePolicy: pbPol,
 	})
 	if err != nil {
 		fmt.Println("WAVE verify FAILED")
 		wveError = wve.ErrW(wve.ProofInvalid, "failed to WAVE verify proof", err).Error()
-	}
-	if verifyresp.Error != nil {
+	} else if verifyresp.Error != nil {
 		fmt.Println("WAVE verify FAILED")
 		wveError = verifyresp.Error.Message
+	} else {
+		fmt.Println("WAVE verify PASSED")
 	}
-	fmt.Println("WAVE verify PASSED")
 	waveTime := time.Unix(verifyresp.Result.GetExpiry()/1e3, 0)
 
 	//This is not important
@@ -190,6 +286,8 @@ func checkVerification(DER []byte, spol *serdes.RTreePolicy, pbPol *pb.RTreePoli
 		polDER, C.ulong(len(polBytes)))
 	if int64(CExpiry) == -1 {
 		enclaveError = wve.Err(wve.EnclaveError, "failed to C verify proof").Error()
+	} else if int64(CExpiry) == -2 {
+		enclaveError = wve.Err(wve.EnclaveError, "failed to C decrypt proof").Error()
 	} else {
 		expiryStr := strconv.FormatInt(int64(CExpiry), 10)
 		proofExpiry := fmt.Sprintf("20%s-%s-%sT%s:%s:%sZ", expiryStr[0:2], expiryStr[2:4],
@@ -262,8 +360,152 @@ func testBasic() TestVerifyError {
 			},
 		},
 	}
-	return checkVerification(proofresp.ProofDER, &spol, &pbPol, Dst.Hash)
+	encresp, err := waveconn.EncryptProof(context.Background(), &pb.EncryptMessageParams{
+		Namespace: Src.Hash,
+		Resource:  "whatever",
+		Content:   proofresp.ProofDER,
+	})
+	if err != nil {
+		panic(err)
+	}
+	if encresp.Error != nil {
+		panic(encresp.Error.Message)
+	}
+	return checkVerification(encresp.Ciphertext, &spol, &pbPol, Dst.Hash)
 }
+
+// tests key sealing functionality
+// func testBasicSealing() TestVerifyError {
+
+// 	proofresp, err := waveconn.BuildRTreeProof(context.Background(), &pb.BuildRTreeProofParams{
+// 		Perspective: &pb.Perspective{
+// 			EntitySecret: &pb.EntitySecret{
+// 				DER: Dst.SecretDER,
+// 			},
+// 		},
+// 		SubjectHash: Dst.Hash,
+// 		Namespace:   Src.Hash,
+// 		Statements: []*pb.RTreePolicyStatement{
+// 			&pb.RTreePolicyStatement{
+// 				PermissionSet: Src.Hash,
+// 				Permissions:   []string{"default"},
+// 				Resource:      "default",
+// 			},
+// 		},
+// 		ResyncFirst: true,
+// 	})
+// 	if err != nil {
+// 		panic(err)
+// 	}
+// 	if proofresp.Error != nil {
+// 		panic(proofresp.Error.Message)
+// 	}
+
+// 	ehash := iapi.HashSchemeInstanceFromMultihash(Src.Hash)
+// 	if !ehash.Supported() {
+// 		panic(wve.Err(wve.InvalidParameter, "bad namespace"))
+// 	}
+// 	ext := ehash.CanonicalForm()
+
+// 	spol := serdes.RTreePolicy{
+// 		Namespace: *ext,
+// 		Statements: []serdes.RTreeStatement{
+// 			{
+// 				PermissionSet: *ext,
+// 				Permissions:   []string{"default"},
+// 				Resource:      "default",
+// 			},
+// 		},
+// 	}
+
+// 	pbPol := pb.RTreePolicy{
+// 		Namespace: Src.Hash,
+// 		Statements: []*pb.RTreePolicyStatement{
+// 			&pb.RTreePolicyStatement{
+// 				PermissionSet: Src.Hash,
+// 				Permissions:   []string{"default"},
+// 				Resource:      "default",
+// 			},
+// 		},
+// 	}
+// 	encresp, err := waveconn.EncryptMessage(context.Background(), &pb.EncryptMessageParams{
+// 		Namespace: Src.Hash,
+// 		Resource:  "wavemq",
+// 		Content:   proofresp.ProofDER,
+// 	})
+// 	if err != nil {
+// 		panic(err)
+// 	}
+// 	if encresp.Error != nil {
+// 		panic(encresp.Error.Message)
+// 	}
+
+// 	resp, err := waveconn.GetDecryptKey(context.Background(), &pb.DecryptMessageParams{
+// 		Perspective: &pb.Perspective{
+// 			EntitySecret: &pb.EntitySecret{
+// 				DER: Dst.SecretDER,
+// 			},
+// 		},
+// 		Ciphertext: encresp.Ciphertext,
+// 	})
+// 	if err != nil {
+// 		panic(err)
+// 	}
+// 	if resp.Error != nil {
+// 		panic(resp.Error.Message)
+// 	}
+// 	key := resp.Content[:16]
+// 	iv := resp.Content[16:]
+// 	k := (*C.char)(unsafe.Pointer(&key[0]))
+// 	i := (*C.char)(unsafe.Pointer(&iv[0]))
+// 	ret := C.provision_key(k, i)
+// 	if int32(ret) != 0 {
+// 		panic("Could not provision key")
+// 	}
+// 	return checkVerification(encresp.Ciphertext, &spol, &pbPol, Dst.Hash)
+
+// 	src, err := waveconn.CreateEntity(context.Background(), &pb.CreateEntityParams{
+// 		ValidFrom:  time.Now().Add(time.Second).UnixNano() / 1e6,
+// 		ValidUntil: time.Now().Add(time.Minute*10).UnixNano() / 1e6,
+// 	})
+// 	if err != nil {
+// 		panic(err)
+// 	}
+// 	if src.Error != nil {
+// 		panic(src.Error.Message)
+// 	}
+// 	dst, err := waveconn.CreateEntity(context.Background(), &pb.CreateEntityParams{
+// 		ValidUntil:       time.Now().Add(time.Minute*20).UnixNano() / 1e6,
+// 		SecretPassphrase: "wave",
+// 	})
+// 	if err != nil {
+// 		panic(err)
+// 	}
+// 	if dst.Error != nil {
+// 		panic(dst.Error.Message)
+// 	}
+// 	srcresp, err := waveconn.PublishEntity(context.Background(), &pb.PublishEntityParams{
+// 		DER: src.PublicDER,
+// 		Location: &pb.Location{
+// 			AgentLocation: "default",
+// 		},
+// 	})
+// 	if err != nil {
+// 		panic(err)
+// 	}
+// 	if srcresp.Error != nil {
+// 		panic(srcresp.Error.Message)
+// 	}
+// 	dstresp, err := waveconn.PublishEntity(context.Background(), &pb.PublishEntityParams{
+// 		DER: dst.PublicDER,
+// 	})
+// 	if err != nil {
+// 		panic(err)
+// 	}
+// 	if dstresp.Error != nil {
+// 		panic(dstresp.Error.Message)
+// 	}
+// }
 
 // tests policy permission which doesn't match proof
 func testBadPolicyPermission() TestVerifyError {
@@ -318,7 +560,18 @@ func testBadPolicyPermission() TestVerifyError {
 			},
 		},
 	}
-	return checkVerification(proofresp.ProofDER, &spol, &pbPol, Dst.Hash)
+	encresp, err := waveconn.EncryptMessage(context.Background(), &pb.EncryptMessageParams{
+		Namespace: Src.Hash,
+		Resource:  "wavemq",
+		Content:   proofresp.ProofDER,
+	})
+	if err != nil {
+		panic(err)
+	}
+	if encresp.Error != nil {
+		panic(encresp.Error.Message)
+	}
+	return checkVerification(encresp.Ciphertext, &spol, &pbPol, Dst.Hash)
 }
 
 // tests policy resource which doesn't match proof
@@ -374,7 +627,18 @@ func testBadPolicyResource() TestVerifyError {
 			},
 		},
 	}
-	return checkVerification(proofresp.ProofDER, &spol, &pbPol, Dst.Hash)
+	encresp, err := waveconn.EncryptMessage(context.Background(), &pb.EncryptMessageParams{
+		Namespace: Src.Hash,
+		Resource:  "wavemq",
+		Content:   proofresp.ProofDER,
+	})
+	if err != nil {
+		panic(err)
+	}
+	if encresp.Error != nil {
+		panic(encresp.Error.Message)
+	}
+	return checkVerification(encresp.Ciphertext, &spol, &pbPol, Dst.Hash)
 }
 
 // tests policy pset which doesn't match proof
@@ -436,7 +700,18 @@ func testBadPolicyPset() TestVerifyError {
 			},
 		},
 	}
-	return checkVerification(proofresp.ProofDER, &spol, &pbPol, Dst.Hash)
+	encresp, err := waveconn.EncryptMessage(context.Background(), &pb.EncryptMessageParams{
+		Namespace: Src.Hash,
+		Resource:  "wavemq",
+		Content:   proofresp.ProofDER,
+	})
+	if err != nil {
+		panic(err)
+	}
+	if encresp.Error != nil {
+		panic(encresp.Error.Message)
+	}
+	return checkVerification(encresp.Ciphertext, &spol, &pbPol, Dst.Hash)
 }
 
 // tests policy namespace which doesn't match proof
@@ -498,7 +773,18 @@ func testBadPolicyNamespace() TestVerifyError {
 			},
 		},
 	}
-	return checkVerification(proofresp.ProofDER, &spol, &pbPol, Dst.Hash)
+	encresp, err := waveconn.EncryptMessage(context.Background(), &pb.EncryptMessageParams{
+		Namespace: Src.Hash,
+		Resource:  "wavemq",
+		Content:   proofresp.ProofDER,
+	})
+	if err != nil {
+		panic(err)
+	}
+	if encresp.Error != nil {
+		panic(encresp.Error.Message)
+	}
+	return checkVerification(encresp.Ciphertext, &spol, &pbPol, Dst.Hash)
 }
 
 // tests policy subject which doesn't match proof
@@ -554,7 +840,18 @@ func testBadPolicySubject() TestVerifyError {
 			},
 		},
 	}
-	return checkVerification(proofresp.ProofDER, &spol, &pbPol, Src.Hash)
+	encresp, err := waveconn.EncryptMessage(context.Background(), &pb.EncryptMessageParams{
+		Namespace: Src.Hash,
+		Resource:  "wavemq",
+		Content:   proofresp.ProofDER,
+	})
+	if err != nil {
+		panic(err)
+	}
+	if encresp.Error != nil {
+		panic(encresp.Error.Message)
+	}
+	return checkVerification(encresp.Ciphertext, &spol, &pbPol, Src.Hash)
 }
 
 // tests proof which doesn't contain a superset of the needed permissions
@@ -610,7 +907,18 @@ func testBadPolicy() TestVerifyError {
 			},
 		},
 	}
-	return checkVerification(proofresp.ProofDER, &spol, &pbPol, Dst.Hash)
+	encresp, err := waveconn.EncryptMessage(context.Background(), &pb.EncryptMessageParams{
+		Namespace: Src.Hash,
+		Resource:  "wavemq",
+		Content:   proofresp.ProofDER,
+	})
+	if err != nil {
+		panic(err)
+	}
+	if encresp.Error != nil {
+		panic(encresp.Error.Message)
+	}
+	return checkVerification(encresp.Ciphertext, &spol, &pbPol, Dst.Hash)
 }
 
 // tests verifying policy of no permissions with proof
@@ -666,7 +974,18 @@ func testNoPermissions() TestVerifyError {
 			},
 		},
 	}
-	return checkVerification(proofresp.ProofDER, &spol, &pbPol, Dst.Hash)
+	encresp, err := waveconn.EncryptMessage(context.Background(), &pb.EncryptMessageParams{
+		Namespace: Src.Hash,
+		Resource:  "wavemq",
+		Content:   proofresp.ProofDER,
+	})
+	if err != nil {
+		panic(err)
+	}
+	if encresp.Error != nil {
+		panic(encresp.Error.Message)
+	}
+	return checkVerification(encresp.Ciphertext, &spol, &pbPol, Dst.Hash)
 }
 
 // tests interesting resource paths and regex patterns
@@ -750,7 +1069,18 @@ func testResourcePaths() TestVerifyError {
 			},
 		},
 	}
-	if err := checkVerification(proofresp.ProofDER, &spol, &pbPol, Dst.Hash); err.wveError != "" || err.enclaveError != "" || err.expiryError != "" {
+	encresp, err := waveconn.EncryptMessage(context.Background(), &pb.EncryptMessageParams{
+		Namespace: Src.Hash,
+		Resource:  "wavemq",
+		Content:   proofresp.ProofDER,
+	})
+	if err != nil {
+		panic(err)
+	}
+	if encresp.Error != nil {
+		panic(encresp.Error.Message)
+	}
+	if err := checkVerification(encresp.Ciphertext, &spol, &pbPol, Dst.Hash); err.wveError != "" || err.enclaveError != "" || err.expiryError != "" {
 		err.enclaveError += " failed verifying resource string " + resource
 		return err
 	}
@@ -809,7 +1139,18 @@ func testResourcePaths() TestVerifyError {
 	}
 	spol.Statements[0].Resource = resource
 	pbPol.Statements[0].Resource = resource
-	if err := checkVerification(proofresp.ProofDER, &spol, &pbPol, Dst.Hash); err.wveError != "" || err.enclaveError != "" || err.expiryError != "" {
+	encresp, err = waveconn.EncryptMessage(context.Background(), &pb.EncryptMessageParams{
+		Namespace: Src.Hash,
+		Resource:  "wavemq",
+		Content:   proofresp.ProofDER,
+	})
+	if err != nil {
+		panic(err)
+	}
+	if encresp.Error != nil {
+		panic(encresp.Error.Message)
+	}
+	if err := checkVerification(encresp.Ciphertext, &spol, &pbPol, Dst.Hash); err.wveError != "" || err.enclaveError != "" || err.expiryError != "" {
 		err.enclaveError += " failed verifying resource string " + resource
 		return err
 	}
@@ -868,7 +1209,18 @@ func testResourcePaths() TestVerifyError {
 	}
 	spol.Statements[0].Resource = resource
 	pbPol.Statements[0].Resource = resource
-	if err := checkVerification(proofresp.ProofDER, &spol, &pbPol, Dst.Hash); err.wveError != "" || err.enclaveError != "" || err.expiryError != "" {
+	encresp, err = waveconn.EncryptMessage(context.Background(), &pb.EncryptMessageParams{
+		Namespace: Src.Hash,
+		Resource:  "wavemq",
+		Content:   proofresp.ProofDER,
+	})
+	if err != nil {
+		panic(err)
+	}
+	if encresp.Error != nil {
+		panic(encresp.Error.Message)
+	}
+	if err := checkVerification(encresp.Ciphertext, &spol, &pbPol, Dst.Hash); err.wveError != "" || err.enclaveError != "" || err.expiryError != "" {
 		err.enclaveError += " failed verifying resource string " + resource
 		return err
 	}
@@ -980,10 +1332,22 @@ func testMultipleStatements() TestVerifyError {
 			},
 		},
 	}
-	return checkVerification(proofresp.ProofDER, &spol, &pbPol, Dst.Hash)
+	encresp, err := waveconn.EncryptMessage(context.Background(), &pb.EncryptMessageParams{
+		Namespace: Src.Hash,
+		Resource:  "wavemq",
+		Content:   proofresp.ProofDER,
+	})
+	if err != nil {
+		panic(err)
+	}
+	if encresp.Error != nil {
+		panic(encresp.Error.Message)
+	}
+	return checkVerification(encresp.Ciphertext, &spol, &pbPol, Dst.Hash)
 }
 
 // tests proof which contains multiple attestations
+// WAVE has not yet implemented proof verification with multiple statements
 func testMultipleAttestations() TestVerifyError {
 	attresp, err := waveconn.CreateAttestation(context.Background(), &pb.CreateAttestationParams{
 		Perspective: &pb.Perspective{
@@ -1120,7 +1484,18 @@ func testMultipleAttestations() TestVerifyError {
 			// },
 		},
 	}
-	return checkVerification(proofresp.ProofDER, &spol, &pbPol, Dst.Hash)
+	encresp, err := waveconn.EncryptMessage(context.Background(), &pb.EncryptMessageParams{
+		Namespace: Src.Hash,
+		Resource:  "wavemq",
+		Content:   proofresp.ProofDER,
+	})
+	if err != nil {
+		panic(err)
+	}
+	if encresp.Error != nil {
+		panic(encresp.Error.Message)
+	}
+	return checkVerification(encresp.Ciphertext, &spol, &pbPol, Dst.Hash)
 }
 
 // tests proof which contains multiple attestations
@@ -1226,8 +1601,18 @@ func testAttestationChain() TestVerifyError {
 			},
 		},
 	}
-
-	return checkVerification(proofresp.ProofDER, &spol, &pbPol, ent.Hash)
+	encresp, err := waveconn.EncryptMessage(context.Background(), &pb.EncryptMessageParams{
+		Namespace: Src.Hash,
+		Resource:  "wavemq",
+		Content:   proofresp.ProofDER,
+	})
+	if err != nil {
+		panic(err)
+	}
+	if encresp.Error != nil {
+		panic(encresp.Error.Message)
+	}
+	return checkVerification(encresp.Ciphertext, &spol, &pbPol, ent.Hash)
 }
 
 // tests entities and attestations with optional fields
@@ -1367,7 +1752,18 @@ func testBasicWithOptionals() TestVerifyError {
 			},
 		},
 	}
-	return checkVerification(proofresp.ProofDER, &spol, &pbPol, dst.Hash)
+	encresp, err := waveconn.EncryptMessage(context.Background(), &pb.EncryptMessageParams{
+		Namespace: src.Hash,
+		Resource:  "wavemq",
+		Content:   proofresp.ProofDER,
+	})
+	if err != nil {
+		panic(err)
+	}
+	if encresp.Error != nil {
+		panic(encresp.Error.Message)
+	}
+	return checkVerification(encresp.Ciphertext, &spol, &pbPol, dst.Hash)
 }
 
 // tests memory management of enclave by verifying many proofs
@@ -1423,10 +1819,20 @@ func testBulkVerify() TestVerifyError {
 			},
 		},
 	}
-
+	encresp, err := waveconn.EncryptMessage(context.Background(), &pb.EncryptMessageParams{
+		Namespace: Src.Hash,
+		Resource:  "wavemq",
+		Content:   proofresp.ProofDER,
+	})
+	if err != nil {
+		panic(err)
+	}
+	if encresp.Error != nil {
+		panic(encresp.Error.Message)
+	}
 	for i := 0; i < 500; i++ {
 		fmt.Printf("Test Bulk Verify: Starting iteration %d\n", i)
-		if err := checkVerification(proofresp.ProofDER, &spol, &pbPol, Dst.Hash); err.wveError != "" || err.enclaveError != "" || err.expiryError != "" {
+		if err := checkVerification(encresp.Ciphertext, &spol, &pbPol, Dst.Hash); err.wveError != "" || err.enclaveError != "" || err.expiryError != "" {
 			fmt.Printf("failed bulk verify on iteration %d\n", i)
 			return err
 		}
@@ -1500,7 +1906,18 @@ func testBulkInvalidProofVerify() TestVerifyError {
 		copy(proofCopy, proofresp.ProofDER)
 		ind := r.Intn(len(proofCopy) - 14)
 		copy(proofCopy[ind:ind+14], garbage)
-		checkVerification(proofCopy, &spol, &pbPol, Dst.Hash)
+		encresp, err := waveconn.EncryptMessage(context.Background(), &pb.EncryptMessageParams{
+			Namespace: Src.Hash,
+			Resource:  "wavemq",
+			Content:   proofCopy,
+		})
+		if err != nil {
+			panic(err)
+		}
+		if encresp.Error != nil {
+			panic(encresp.Error.Message)
+		}
+		checkVerification(encresp.Ciphertext, &spol, &pbPol, Dst.Hash)
 	}
 	return TestVerifyError{
 		wveError:     "",
@@ -1562,10 +1979,21 @@ func testBulkInvalidPolicyVerify() TestVerifyError {
 			},
 		},
 	}
+	encresp, err := waveconn.EncryptMessage(context.Background(), &pb.EncryptMessageParams{
+		Namespace: Src.Hash,
+		Resource:  "wavemq",
+		Content:   proofresp.ProofDER,
+	})
+	if err != nil {
+		panic(err)
+	}
+	if encresp.Error != nil {
+		panic(encresp.Error.Message)
+	}
 
 	for i := 0; i < 500; i++ {
 		fmt.Printf("Test Bulk Invalid Policy Verify: Starting iteration %d\n", i)
-		if err := checkVerification(proofresp.ProofDER, &spol, &pbPol, Dst.Hash); err.wveError == "" || err.enclaveError == "" {
+		if err := checkVerification(encresp.Ciphertext, &spol, &pbPol, Dst.Hash); err.wveError == "" || err.enclaveError == "" {
 			fmt.Printf("failed bulk invalid policy verify on iteration %d\n", i)
 			return err
 		}
@@ -1578,45 +2006,19 @@ func testBulkInvalidPolicyVerify() TestVerifyError {
 }
 
 func main() {
-	resp, err := waveconn.EncryptMessage(context.Background(), &pb.EncryptMessageParams{
-		Namespace: Src.Hash,
-		Resource:  "foo",
-		Content:   []byte("hello world"),
-	})
-	if err != nil {
-		panic(err)
+	var results []string
+	for name, test := range tests {
+		fmt.Println("======== BEGIN TEST " + name + " ========")
+		err := test()
+		if !strings.Contains(name, "BAD") && (err.wveError != "" || err.enclaveError != "" || err.expiryError != "") {
+			results = append(results, fmt.Sprintf("error in %s: %s", name, err.Error()))
+		}
+		if strings.Contains(name, "BAD") && (err.wveError == "" || err.enclaveError == "") {
+			results = append(results, fmt.Sprintf("error in %s: %s", name, err.Error()))
+		}
+		fmt.Println("======== END TEST " + name + " ========")
 	}
-	if resp.Error != nil {
-		panic(resp.Error.Message)
+	for _, result := range results {
+		fmt.Println(result)
 	}
-	dec, err := waveconn.DecryptMessage(context.Background(), &pb.DecryptMessageParams{
-		Perspective: &pb.Perspective{
-			EntitySecret: &pb.EntitySecret{
-				DER: Dst.SecretDER,
-			},
-		},
-		Ciphertext:  resp.Ciphertext,
-		ResyncFirst: true,
-	})
-	if err != nil {
-		panic(err)
-	}
-	if dec.Error != nil {
-		panic(dec.Error.Message)
-	}
-	// var results []string
-	// for name, test := range tests {
-	// 	fmt.Println("======== BEGIN TEST " + name + " ========")
-	// 	err := test()
-	// 	if !strings.Contains(name, "BAD") && (err.wveError != "" || err.enclaveError != "" || err.expiryError != "") {
-	// 		results = append(results, fmt.Sprintf("error in %s: %s", name, err.Error()))
-	// 	}
-	// 	if strings.Contains(name, "BAD") && (err.wveError == "" || err.enclaveError == "") {
-	// 		results = append(results, fmt.Sprintf("error in %s: %s", name, err.Error()))
-	// 	}
-	// 	fmt.Println("======== END TEST " + name + " ========")
-	// }
-	// for _, result := range results {
-	// 	fmt.Println(result)
-	// }
 }

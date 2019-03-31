@@ -39,6 +39,10 @@ enclave {
 		public long ecall_verify_proof([in,size=proof_cipher_size] char *proof_cipher,
         	size_t proof_cipher_size, [in,size=subj_size] char *subject, size_t subj_size,
 			[in,size=policyDER_size] char *policyDER, size_t policyDER_size);
+		
+		public sgx_status_t ecall_provision_key([in,size=16] char *key, [in,size=12] char *iv);
+
+		public sgx_status_t ecall_instantiate_key();
 
 		public sgx_status_t enclave_ra_get_key_hash(
 			[out] sgx_status_t *get_keys_status, sgx_ra_context_t ctx,
