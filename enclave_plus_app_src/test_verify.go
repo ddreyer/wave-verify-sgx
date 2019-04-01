@@ -9,6 +9,7 @@ import "C"
 
 import (
 	"context"
+	"encoding/binary"
 	"fmt"
 	"math/rand"
 	"os"
@@ -18,7 +19,6 @@ import (
 	"unsafe"
 
 	"github.com/immesys/asn1"
-	"github.com/immesys/wave/consts"
 	"github.com/immesys/wave/eapi"
 	"github.com/immesys/wave/eapi/pb"
 	"github.com/immesys/wave/iapi"
@@ -32,10 +32,8 @@ type TestFunc func() TestVerifyError
 var tests = map[string]TestFunc{
 	/* tests that should not cause errors */
 	"BASIC": testBasic,
-	// "BASIC SEALING": testBasicSealing,
 	// "BASIC WITH OPTIONALS":  testBasicWithOptionals,
-	// "MULTIPLE STATEMENTS":   testMultipleStatements,
-	// "MULTIPLE ATTESTATIONS": testMultipleAttestations,
+	// "MULTIPLE STATEMENTS": testMultipleStatements,
 	// "ATTESTATION CHAIN":     testAttestationChain,
 	// "RESOURCE PATHS":        testResourcePaths,
 	// "NO PERMISSIONS": testNoPermissions,
@@ -45,12 +43,13 @@ var tests = map[string]TestFunc{
 	// "BAD POLICY PSET":       testBadPolicyPset,
 	// "BAD POLICY NAMESPACE":  testBadPolicyNamespace,
 	// "BAD POLICY SUBJECT":    testBadPolicySubject,
-	// "BAD POLICY": testBadPolicy,
+	// "BAD POLICY":            testBadPolicy,
 	// /* enclave memory management tests */
-	// "BULK VERIFY":                testBulkVerify,
-	// "BULK INVALID PROOF VERIFY":  testBulkInvalidProofVerify,
+	// "BULK VERIFY": testBulkVerify,
+	// "BULK INVALID PROOF VERIFY": testBulkInvalidProofVerify,
 	// "BULK INVALID POLICY VERIFY": testBulkInvalidPolicyVerify,
 	// /* tests that should fail due to unimplemented features
+	// "BASIC SEALING": testBasicSealing,
 	// "EXPIRED PROOF"
 	// "REVOKED ATTESTATION"
 }
@@ -155,38 +154,9 @@ func init() {
 		panic(attresp.Error.Message)
 	}
 
-	attresp, err = waveconn.CreateAttestation(context.Background(), &pb.CreateAttestationParams{
-		Perspective: &pb.Perspective{
-			EntitySecret: &pb.EntitySecret{
-				DER: Src.SecretDER,
-			},
-		},
-		SubjectHash: Dst.Hash,
-		Policy: &pb.Policy{
-			RTreePolicy: &pb.RTreePolicy{
-				Namespace:    Src.Hash,
-				Indirections: 20,
-				Statements: []*pb.RTreePolicyStatement{
-					&pb.RTreePolicyStatement{
-						PermissionSet: []byte(consts.WaveBuiltinPSET),
-						Permissions:   []string{consts.WaveBuiltinE2EE},
-						Resource:      "*",
-					},
-				},
-			},
-		},
-		Publish: true,
-	})
-	if err != nil {
-		panic(err)
-	}
-	if attresp.Error != nil {
-		panic(attresp.Error.Message)
-	}
-
 	encresp, err := waveconn.EncryptMessage(context.Background(), &pb.EncryptMessageParams{
 		Namespace: Src.Hash,
-		Resource:  "wavemq",
+		Resource:  "whatever",
 		Content:   []byte("whatever"),
 	})
 	if err != nil {
@@ -232,24 +202,17 @@ func checkVerification(DER []byte, spol *serdes.RTreePolicy, pbPol *pb.RTreePoli
 	fmt.Println(string(Key))
 	fmt.Println("iv")
 	fmt.Println(string(Iv))
+
+	// decode encrypted proof such that it is only ciphertext
+	lqibeCiphertextLength := int(binary.BigEndian.Uint16(DER[0:2]))
+	if len(DER) < lqibeCiphertextLength+2 {
+		panic(wve.Err(wve.InvalidParameter, "encrypted proof is incorrect"))
+	}
+	DER = DER[lqibeCiphertextLength+2:]
 	plaintext, e := iapi.AesGCMDecrypt(Key, DER, Iv)
 	if !e {
 		panic(e)
 	}
-	// decresp, err := waveconn.DecryptProof(context.Background(), &pb.DecryptMessageParams{
-	// 	Perspective: &pb.Perspective{
-	// 		EntitySecret: &pb.EntitySecret{
-	// 			DER: Dst.SecretDER,
-	// 		},
-	// 	},
-	// 	Ciphertext: DER,
-	// })
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// if decresp.Error != nil {
-	// 	panic(decresp.Error.Message)
-	// }
 	verifyresp, err := waveconn.VerifyProof(context.Background(), &pb.VerifyProofParams{
 		ProofDER:            plaintext,
 		Subject:             subjectHash,
@@ -376,7 +339,16 @@ func testBasic() TestVerifyError {
 
 // tests key sealing functionality
 // func testBasicSealing() TestVerifyError {
-
+// 	ret := C.destroy_enclave()
+// 	if ret != 0 {
+// 		fmt.Printf("error destroying enclave")
+// 		os.Exit(1)
+// 	}
+// 	ret = C.init_enclave()
+// 	if ret != 0 {
+// 		fmt.Printf("error initializing enclave")
+// 		os.Exit(1)
+// 	}
 // 	proofresp, err := waveconn.BuildRTreeProof(context.Background(), &pb.BuildRTreeProofParams{
 // 		Perspective: &pb.Perspective{
 // 			EntitySecret: &pb.EntitySecret{
@@ -428,9 +400,9 @@ func testBasic() TestVerifyError {
 // 			},
 // 		},
 // 	}
-// 	encresp, err := waveconn.EncryptMessage(context.Background(), &pb.EncryptMessageParams{
+// 	encresp, err := waveconn.EncryptProof(context.Background(), &pb.EncryptMessageParams{
 // 		Namespace: Src.Hash,
-// 		Resource:  "wavemq",
+// 		Resource:  "whatever",
 // 		Content:   proofresp.ProofDER,
 // 	})
 // 	if err != nil {
@@ -440,71 +412,71 @@ func testBasic() TestVerifyError {
 // 		panic(encresp.Error.Message)
 // 	}
 
-// 	resp, err := waveconn.GetDecryptKey(context.Background(), &pb.DecryptMessageParams{
-// 		Perspective: &pb.Perspective{
-// 			EntitySecret: &pb.EntitySecret{
-// 				DER: Dst.SecretDER,
-// 			},
-// 		},
-// 		Ciphertext: encresp.Ciphertext,
-// 	})
-// 	if err != nil {
-// 		panic(err)
-// 	}
-// 	if resp.Error != nil {
-// 		panic(resp.Error.Message)
-// 	}
-// 	key := resp.Content[:16]
-// 	iv := resp.Content[16:]
-// 	k := (*C.char)(unsafe.Pointer(&key[0]))
-// 	i := (*C.char)(unsafe.Pointer(&iv[0]))
-// 	ret := C.provision_key(k, i)
-// 	if int32(ret) != 0 {
-// 		panic("Could not provision key")
-// 	}
+// 	// resp, err := waveconn.GetDecryptKey(context.Background(), &pb.DecryptMessageParams{
+// 	// 	Perspective: &pb.Perspective{
+// 	// 		EntitySecret: &pb.EntitySecret{
+// 	// 			DER: Dst.SecretDER,
+// 	// 		},
+// 	// 	},
+// 	// 	Ciphertext: encresp.Ciphertext,
+// 	// })
+// 	// if err != nil {
+// 	// 	panic(err)
+// 	// }
+// 	// if resp.Error != nil {
+// 	// 	panic(resp.Error.Message)
+// 	// }
+// 	// key := resp.Content[:16]
+// 	// iv := resp.Content[16:]
+// 	// k := (*C.char)(unsafe.Pointer(&key[0]))
+// 	// i := (*C.char)(unsafe.Pointer(&iv[0]))
+// 	// ret = C.provision_key(k, i)
+// 	// if int32(ret) != 0 {
+// 	// 	panic("Could not provision key")
+// 	// }
 // 	return checkVerification(encresp.Ciphertext, &spol, &pbPol, Dst.Hash)
 
-// 	src, err := waveconn.CreateEntity(context.Background(), &pb.CreateEntityParams{
-// 		ValidFrom:  time.Now().Add(time.Second).UnixNano() / 1e6,
-// 		ValidUntil: time.Now().Add(time.Minute*10).UnixNano() / 1e6,
-// 	})
-// 	if err != nil {
-// 		panic(err)
-// 	}
-// 	if src.Error != nil {
-// 		panic(src.Error.Message)
-// 	}
-// 	dst, err := waveconn.CreateEntity(context.Background(), &pb.CreateEntityParams{
-// 		ValidUntil:       time.Now().Add(time.Minute*20).UnixNano() / 1e6,
-// 		SecretPassphrase: "wave",
-// 	})
-// 	if err != nil {
-// 		panic(err)
-// 	}
-// 	if dst.Error != nil {
-// 		panic(dst.Error.Message)
-// 	}
-// 	srcresp, err := waveconn.PublishEntity(context.Background(), &pb.PublishEntityParams{
-// 		DER: src.PublicDER,
-// 		Location: &pb.Location{
-// 			AgentLocation: "default",
-// 		},
-// 	})
-// 	if err != nil {
-// 		panic(err)
-// 	}
-// 	if srcresp.Error != nil {
-// 		panic(srcresp.Error.Message)
-// 	}
-// 	dstresp, err := waveconn.PublishEntity(context.Background(), &pb.PublishEntityParams{
-// 		DER: dst.PublicDER,
-// 	})
-// 	if err != nil {
-// 		panic(err)
-// 	}
-// 	if dstresp.Error != nil {
-// 		panic(dstresp.Error.Message)
-// 	}
+// 	// src, err := waveconn.CreateEntity(context.Background(), &pb.CreateEntityParams{
+// 	// 	ValidFrom:  time.Now().Add(time.Second).UnixNano() / 1e6,
+// 	// 	ValidUntil: time.Now().Add(time.Minute*10).UnixNano() / 1e6,
+// 	// })
+// 	// if err != nil {
+// 	// 	panic(err)
+// 	// }
+// 	// if src.Error != nil {
+// 	// 	panic(src.Error.Message)
+// 	// }
+// 	// dst, err := waveconn.CreateEntity(context.Background(), &pb.CreateEntityParams{
+// 	// 	ValidUntil:       time.Now().Add(time.Minute*20).UnixNano() / 1e6,
+// 	// 	SecretPassphrase: "wave",
+// 	// })
+// 	// if err != nil {
+// 	// 	panic(err)
+// 	// }
+// 	// if dst.Error != nil {
+// 	// 	panic(dst.Error.Message)
+// 	// }
+// 	// srcresp, err := waveconn.PublishEntity(context.Background(), &pb.PublishEntityParams{
+// 	// 	DER: src.PublicDER,
+// 	// 	Location: &pb.Location{
+// 	// 		AgentLocation: "default",
+// 	// 	},
+// 	// })
+// 	// if err != nil {
+// 	// 	panic(err)
+// 	// }
+// 	// if srcresp.Error != nil {
+// 	// 	panic(srcresp.Error.Message)
+// 	// }
+// 	// dstresp, err := waveconn.PublishEntity(context.Background(), &pb.PublishEntityParams{
+// 	// 	DER: dst.PublicDER,
+// 	// })
+// 	// if err != nil {
+// 	// 	panic(err)
+// 	// }
+// 	// if dstresp.Error != nil {
+// 	// 	panic(dstresp.Error.Message)
+// 	// }
 // }
 
 // tests policy permission which doesn't match proof
@@ -560,9 +532,9 @@ func testBadPolicyPermission() TestVerifyError {
 			},
 		},
 	}
-	encresp, err := waveconn.EncryptMessage(context.Background(), &pb.EncryptMessageParams{
+	encresp, err := waveconn.EncryptProof(context.Background(), &pb.EncryptMessageParams{
 		Namespace: Src.Hash,
-		Resource:  "wavemq",
+		Resource:  "whatever",
 		Content:   proofresp.ProofDER,
 	})
 	if err != nil {
@@ -627,9 +599,9 @@ func testBadPolicyResource() TestVerifyError {
 			},
 		},
 	}
-	encresp, err := waveconn.EncryptMessage(context.Background(), &pb.EncryptMessageParams{
+	encresp, err := waveconn.EncryptProof(context.Background(), &pb.EncryptMessageParams{
 		Namespace: Src.Hash,
-		Resource:  "wavemq",
+		Resource:  "whatever",
 		Content:   proofresp.ProofDER,
 	})
 	if err != nil {
@@ -700,9 +672,9 @@ func testBadPolicyPset() TestVerifyError {
 			},
 		},
 	}
-	encresp, err := waveconn.EncryptMessage(context.Background(), &pb.EncryptMessageParams{
+	encresp, err := waveconn.EncryptProof(context.Background(), &pb.EncryptMessageParams{
 		Namespace: Src.Hash,
-		Resource:  "wavemq",
+		Resource:  "whatever",
 		Content:   proofresp.ProofDER,
 	})
 	if err != nil {
@@ -773,9 +745,9 @@ func testBadPolicyNamespace() TestVerifyError {
 			},
 		},
 	}
-	encresp, err := waveconn.EncryptMessage(context.Background(), &pb.EncryptMessageParams{
+	encresp, err := waveconn.EncryptProof(context.Background(), &pb.EncryptMessageParams{
 		Namespace: Src.Hash,
-		Resource:  "wavemq",
+		Resource:  "whatever",
 		Content:   proofresp.ProofDER,
 	})
 	if err != nil {
@@ -840,9 +812,9 @@ func testBadPolicySubject() TestVerifyError {
 			},
 		},
 	}
-	encresp, err := waveconn.EncryptMessage(context.Background(), &pb.EncryptMessageParams{
+	encresp, err := waveconn.EncryptProof(context.Background(), &pb.EncryptMessageParams{
 		Namespace: Src.Hash,
-		Resource:  "wavemq",
+		Resource:  "whatever",
 		Content:   proofresp.ProofDER,
 	})
 	if err != nil {
@@ -907,9 +879,9 @@ func testBadPolicy() TestVerifyError {
 			},
 		},
 	}
-	encresp, err := waveconn.EncryptMessage(context.Background(), &pb.EncryptMessageParams{
+	encresp, err := waveconn.EncryptProof(context.Background(), &pb.EncryptMessageParams{
 		Namespace: Src.Hash,
-		Resource:  "wavemq",
+		Resource:  "whatever",
 		Content:   proofresp.ProofDER,
 	})
 	if err != nil {
@@ -974,9 +946,9 @@ func testNoPermissions() TestVerifyError {
 			},
 		},
 	}
-	encresp, err := waveconn.EncryptMessage(context.Background(), &pb.EncryptMessageParams{
+	encresp, err := waveconn.EncryptProof(context.Background(), &pb.EncryptMessageParams{
 		Namespace: Src.Hash,
-		Resource:  "wavemq",
+		Resource:  "whatever",
 		Content:   proofresp.ProofDER,
 	})
 	if err != nil {
@@ -1069,9 +1041,9 @@ func testResourcePaths() TestVerifyError {
 			},
 		},
 	}
-	encresp, err := waveconn.EncryptMessage(context.Background(), &pb.EncryptMessageParams{
+	encresp, err := waveconn.EncryptProof(context.Background(), &pb.EncryptMessageParams{
 		Namespace: Src.Hash,
-		Resource:  "wavemq",
+		Resource:  "whatever",
 		Content:   proofresp.ProofDER,
 	})
 	if err != nil {
@@ -1139,9 +1111,9 @@ func testResourcePaths() TestVerifyError {
 	}
 	spol.Statements[0].Resource = resource
 	pbPol.Statements[0].Resource = resource
-	encresp, err = waveconn.EncryptMessage(context.Background(), &pb.EncryptMessageParams{
+	encresp, err = waveconn.EncryptProof(context.Background(), &pb.EncryptMessageParams{
 		Namespace: Src.Hash,
-		Resource:  "wavemq",
+		Resource:  "whatever",
 		Content:   proofresp.ProofDER,
 	})
 	if err != nil {
@@ -1209,9 +1181,9 @@ func testResourcePaths() TestVerifyError {
 	}
 	spol.Statements[0].Resource = resource
 	pbPol.Statements[0].Resource = resource
-	encresp, err = waveconn.EncryptMessage(context.Background(), &pb.EncryptMessageParams{
+	encresp, err = waveconn.EncryptProof(context.Background(), &pb.EncryptMessageParams{
 		Namespace: Src.Hash,
-		Resource:  "wavemq",
+		Resource:  "whatever",
 		Content:   proofresp.ProofDER,
 	})
 	if err != nil {
@@ -1233,6 +1205,7 @@ func testResourcePaths() TestVerifyError {
 }
 
 // tests proof which contains multiple policy statements
+// WAVE has not yet implemented proof verification with multiple statements
 func testMultipleStatements() TestVerifyError {
 	const pset = "\x1b\x20\x14\x33\x74\xb3\x2f\xd2\x74\x39\x54\xfe\x47\x86\xf6\xcf\x86\xd4\x03\x72\x0f\x5e\xc4\x42\x36\xb6\x58\xc2\x6a\x1e\x68\x0f\x6e\x01"
 	attresp, err := waveconn.CreateAttestation(context.Background(), &pb.CreateAttestationParams{
@@ -1262,6 +1235,35 @@ func testMultipleStatements() TestVerifyError {
 	if attresp.Error != nil {
 		panic(attresp.Error.Message)
 	}
+
+	// 	attresp, err = waveconn.CreateAttestation(context.Background(), &pb.CreateAttestationParams{
+	// 		Perspective: &pb.Perspective{
+	// 			EntitySecret: &pb.EntitySecret{
+	// 				DER: Src.SecretDER,
+	// 			},
+	// 		},
+	// 		SubjectHash: Dst.Hash,
+	// 		Policy: &pb.Policy{
+	// 			RTreePolicy: &pb.RTreePolicy{
+	// 				Namespace: Src.Hash,
+	// 				Statements: []*pb.RTreePolicyStatement{
+	// 					&pb.RTreePolicyStatement{
+	// 						PermissionSet: Src.Hash,
+	// 						Permissions:   []string{"default3"},
+	// 						Resource:      "default",
+	// 					},
+	// 				},
+	// 			},
+	// 		},
+	// 		Publish: true,
+	// 	})
+	// 	if err != nil {
+	// 		panic(err)
+	// 	}
+	// 	if attresp.Error != nil {
+	// 		panic(attresp.Error.Message)
+	// 	}
+
 	proofresp, err := waveconn.BuildRTreeProof(context.Background(), &pb.BuildRTreeProofParams{
 		Perspective: &pb.Perspective{
 			EntitySecret: &pb.EntitySecret{
@@ -1281,6 +1283,11 @@ func testMultipleStatements() TestVerifyError {
 				Permissions:   []string{"bar"},
 				Resource:      "baz",
 			},
+			// &pb.RTreePolicyStatement{
+			// 	PermissionSet: Src.Hash,
+			// 	Permissions:   []string{"default3"},
+			// 	Resource:      "default",
+			// },
 		},
 		ResyncFirst: true,
 	})
@@ -1314,148 +1321,6 @@ func testMultipleStatements() TestVerifyError {
 				Permissions:   []string{"bar"},
 				Resource:      "baz",
 			},
-		},
-	}
-
-	pbPol := pb.RTreePolicy{
-		Namespace: Src.Hash,
-		Statements: []*pb.RTreePolicyStatement{
-			&pb.RTreePolicyStatement{
-				PermissionSet: Src.Hash,
-				Permissions:   []string{"default"},
-				Resource:      "default",
-			},
-			&pb.RTreePolicyStatement{
-				PermissionSet: []byte(pset),
-				Permissions:   []string{"bar"},
-				Resource:      "baz",
-			},
-		},
-	}
-	encresp, err := waveconn.EncryptMessage(context.Background(), &pb.EncryptMessageParams{
-		Namespace: Src.Hash,
-		Resource:  "wavemq",
-		Content:   proofresp.ProofDER,
-	})
-	if err != nil {
-		panic(err)
-	}
-	if encresp.Error != nil {
-		panic(encresp.Error.Message)
-	}
-	return checkVerification(encresp.Ciphertext, &spol, &pbPol, Dst.Hash)
-}
-
-// tests proof which contains multiple attestations
-// WAVE has not yet implemented proof verification with multiple statements
-func testMultipleAttestations() TestVerifyError {
-	attresp, err := waveconn.CreateAttestation(context.Background(), &pb.CreateAttestationParams{
-		Perspective: &pb.Perspective{
-			EntitySecret: &pb.EntitySecret{
-				DER: Src.SecretDER,
-			},
-		},
-		SubjectHash: Dst.Hash,
-		Policy: &pb.Policy{
-			RTreePolicy: &pb.RTreePolicy{
-				Namespace: Src.Hash,
-				Statements: []*pb.RTreePolicyStatement{
-					&pb.RTreePolicyStatement{
-						PermissionSet: Src.Hash,
-						Permissions:   []string{"default2"},
-						Resource:      "default",
-					},
-				},
-			},
-		},
-		Publish: true,
-	})
-	if err != nil {
-		panic(err)
-	}
-	if attresp.Error != nil {
-		panic(attresp.Error.Message)
-	}
-	attresp, err = waveconn.CreateAttestation(context.Background(), &pb.CreateAttestationParams{
-		Perspective: &pb.Perspective{
-			EntitySecret: &pb.EntitySecret{
-				DER: Src.SecretDER,
-			},
-		},
-		SubjectHash: Dst.Hash,
-		Policy: &pb.Policy{
-			RTreePolicy: &pb.RTreePolicy{
-				Namespace: Src.Hash,
-				Statements: []*pb.RTreePolicyStatement{
-					&pb.RTreePolicyStatement{
-						PermissionSet: Src.Hash,
-						Permissions:   []string{"default3"},
-						Resource:      "default",
-					},
-				},
-			},
-		},
-		Publish: true,
-	})
-	if err != nil {
-		panic(err)
-	}
-	if attresp.Error != nil {
-		panic(attresp.Error.Message)
-	}
-	proofresp, err := waveconn.BuildRTreeProof(context.Background(), &pb.BuildRTreeProofParams{
-		Perspective: &pb.Perspective{
-			EntitySecret: &pb.EntitySecret{
-				DER: Dst.SecretDER,
-			},
-		},
-		SubjectHash: Dst.Hash,
-		Namespace:   Src.Hash,
-		Statements: []*pb.RTreePolicyStatement{
-			&pb.RTreePolicyStatement{
-				PermissionSet: Src.Hash,
-				Permissions:   []string{"default"},
-				Resource:      "default",
-			},
-			&pb.RTreePolicyStatement{
-				PermissionSet: Src.Hash,
-				Permissions:   []string{"default2"},
-				Resource:      "default",
-			},
-			// &pb.RTreePolicyStatement{
-			// 	PermissionSet: Src.Hash,
-			// 	Permissions:   []string{"default3"},
-			// 	Resource:      "default",
-			// },
-		},
-		ResyncFirst: true,
-	})
-	if err != nil {
-		panic(err)
-	}
-	if proofresp.Error != nil {
-		panic(proofresp.Error.Message)
-	}
-
-	ehash := iapi.HashSchemeInstanceFromMultihash(Src.Hash)
-	if !ehash.Supported() {
-		panic(wve.Err(wve.InvalidParameter, "bad namespace"))
-	}
-	ext := ehash.CanonicalForm()
-
-	spol := serdes.RTreePolicy{
-		Namespace: *ext,
-		Statements: []serdes.RTreeStatement{
-			{
-				PermissionSet: *ext,
-				Permissions:   []string{"default"},
-				Resource:      "default",
-			},
-			{
-				PermissionSet: *ext,
-				Permissions:   []string{"default2"},
-				Resource:      "default",
-			},
 			// {
 			// 	PermissionSet: *ext,
 			// 	Permissions:   []string{"default3"},
@@ -1473,9 +1338,9 @@ func testMultipleAttestations() TestVerifyError {
 				Resource:      "default",
 			},
 			&pb.RTreePolicyStatement{
-				PermissionSet: Src.Hash,
-				Permissions:   []string{"default2"},
-				Resource:      "default",
+				PermissionSet: []byte(pset),
+				Permissions:   []string{"bar"},
+				Resource:      "baz",
 			},
 			// &pb.RTreePolicyStatement{
 			// 	PermissionSet: Src.Hash,
@@ -1484,9 +1349,9 @@ func testMultipleAttestations() TestVerifyError {
 			// },
 		},
 	}
-	encresp, err := waveconn.EncryptMessage(context.Background(), &pb.EncryptMessageParams{
+	encresp, err := waveconn.EncryptProof(context.Background(), &pb.EncryptMessageParams{
 		Namespace: Src.Hash,
-		Resource:  "wavemq",
+		Resource:  "whatever",
 		Content:   proofresp.ProofDER,
 	})
 	if err != nil {
@@ -1601,9 +1466,9 @@ func testAttestationChain() TestVerifyError {
 			},
 		},
 	}
-	encresp, err := waveconn.EncryptMessage(context.Background(), &pb.EncryptMessageParams{
+	encresp, err := waveconn.EncryptProof(context.Background(), &pb.EncryptMessageParams{
 		Namespace: Src.Hash,
-		Resource:  "wavemq",
+		Resource:  "whatever",
 		Content:   proofresp.ProofDER,
 	})
 	if err != nil {
@@ -1752,9 +1617,9 @@ func testBasicWithOptionals() TestVerifyError {
 			},
 		},
 	}
-	encresp, err := waveconn.EncryptMessage(context.Background(), &pb.EncryptMessageParams{
+	encresp, err := waveconn.EncryptProof(context.Background(), &pb.EncryptMessageParams{
 		Namespace: src.Hash,
-		Resource:  "wavemq",
+		Resource:  "whatever",
 		Content:   proofresp.ProofDER,
 	})
 	if err != nil {
@@ -1819,9 +1684,9 @@ func testBulkVerify() TestVerifyError {
 			},
 		},
 	}
-	encresp, err := waveconn.EncryptMessage(context.Background(), &pb.EncryptMessageParams{
+	encresp, err := waveconn.EncryptProof(context.Background(), &pb.EncryptMessageParams{
 		Namespace: Src.Hash,
-		Resource:  "wavemq",
+		Resource:  "whatever",
 		Content:   proofresp.ProofDER,
 	})
 	if err != nil {
@@ -1906,9 +1771,9 @@ func testBulkInvalidProofVerify() TestVerifyError {
 		copy(proofCopy, proofresp.ProofDER)
 		ind := r.Intn(len(proofCopy) - 14)
 		copy(proofCopy[ind:ind+14], garbage)
-		encresp, err := waveconn.EncryptMessage(context.Background(), &pb.EncryptMessageParams{
+		encresp, err := waveconn.EncryptProof(context.Background(), &pb.EncryptMessageParams{
 			Namespace: Src.Hash,
-			Resource:  "wavemq",
+			Resource:  "whatever",
 			Content:   proofCopy,
 		})
 		if err != nil {
@@ -1979,9 +1844,9 @@ func testBulkInvalidPolicyVerify() TestVerifyError {
 			},
 		},
 	}
-	encresp, err := waveconn.EncryptMessage(context.Background(), &pb.EncryptMessageParams{
+	encresp, err := waveconn.EncryptProof(context.Background(), &pb.EncryptMessageParams{
 		Namespace: Src.Hash,
-		Resource:  "wavemq",
+		Resource:  "whatever",
 		Content:   proofresp.ProofDER,
 	})
 	if err != nil {
