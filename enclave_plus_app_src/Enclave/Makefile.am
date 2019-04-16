@@ -62,8 +62,8 @@ ENCLAVE_KEY=$(ENCLAVE)_private.pem
 ## AM_CPPFLAGS += 
 ## AM_CXXFLAGS +=
 
-AM_CXXFLAGS += -I. -I.. -I$(SGX_SDK)/include/libcxx -Iwave-verify -Iwave-verify/asn1c_files -I$(SGXSSL_INCDIR) -fpermissive
-AM_CFLAGS += -I. -I.. -I$(SGX_SDK)/include/libcxx -Iwave-verify -Iwave-verify/asn1c_files
+AM_CXXFLAGS += -I/home/sgx/go/src/github.com/samkumar/embedded-pairing/include -I$(SGX_SDK)/include/libcxx -Iwave-verify/include/verify -Iwave-verify/include/asn1c -Iwave-verify/src -I$(SGXSSL_INCDIR) -fpermissive
+AM_CFLAGS += -Iwave-verify/include/asn1c
 
 ## Additional files to remove with 'make clean'. This list needs
 ## to include your edger8r genreated files.
@@ -76,17 +76,13 @@ CLEANFILES+= $(ENCLAVE)_t.c $(ENCLAVE)_t.h
 ## target name (i.e., $(ENCLAVE)_SOURCES will not work).
 AUTOMAKE_OPTIONS = subdir-objects
 
-ED_SRCS=wave-verify/ed25519/src/add_scalar.c wave-verify/ed25519/src/fe.c wave-verify/ed25519/src/ge.c \
-wave-verify/ed25519/src/key_exchange.c wave-verify/ed25519/src/keypair.c wave-verify/ed25519/src/sc.c \
-wave-verify/ed25519/src/sha512.c wave-verify/ed25519/src/sign.c wave-verify/ed25519/src/verify.c
+ED_SRCS=wave-verify/src/ed25519/src/add_scalar.c wave-verify/src/ed25519/src/fe.c wave-verify/src/ed25519/src/ge.c \
+wave-verify/src/ed25519/src/key_exchange.c wave-verify/src/ed25519/src/keypair.c wave-verify/src/ed25519/src/sc.c \
+wave-verify/src/ed25519/src/sha512.c wave-verify/src/ed25519/src/sign.c wave-verify/src/ed25519/src/verify.c
+HASH_SRCS=wave-verify/src/hash-library/keccak.cpp
+VERIFY_SRCS=wave-verify/src/verify/verify.cpp
 
-HASH_SRCS=wave-verify/hash-library/keccak.cpp
-
-ASN_PROGRAM_SRCS = wave-verify/utils.cpp\
-	wave-verify/asn.cpp\
-	wave-verify/verify.cpp
-
-Enclave_SOURCES = Enclave_t.c Enclave_t.h $(HASH_SRCS) $(ED_SRCS) $(ASN_MODULE_SRCS) $(ASN_PROGRAM_SRCS) Enclave.cpp \
+Enclave_SOURCES = Enclave_t.c Enclave_t.h $(HASH_SRCS) $(ED_SRCS) $(ASN_MODULE_SRCS) $(VERIFY_SRCS) Enclave.cpp \
 	$(ENCLAVE_KEY) $(ENCLAVE_CONFIG)
 
 
@@ -107,7 +103,7 @@ Enclave_SOURCES = Enclave_t.c Enclave_t.h $(HASH_SRCS) $(ED_SRCS) $(ASN_MODULE_S
 ## of the definition to make sure you pick up the right linker flags
 ## and SGX trusted libraries.
 
-Enclave_LDADD = @SGX_ENCLAVE_LDADD@ -L$(SGXSSL_LIBDIR)
+Enclave_LDADD = @SGX_ENCLAVE_LDADD@ -L$(SGXSSL_LIBDIR) /home/sgx/go/src/github.com/samkumar/embedded-pairing/pairing.a
 
 
 ## Place any additional trusted libraries that your enclave may need in

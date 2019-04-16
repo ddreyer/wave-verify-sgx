@@ -18,14 +18,15 @@ in the License.
 #ifndef _WIN32
 #include "../config.h"
 #endif
-#include "Enclave_t.h"
 #include <string.h>
 #include <sgx_utils.h>
 #include <sgx_tae_service.h>
 #include <sgx_tkey_exchange.h>
 #include <sgx_tcrypto.h>
-#include "sgx_tseal.h"
-#include <verify.h>
+#include <sgx_tseal.h>
+#include "Enclave_t.h"
+#include "verify.hpp"
+#include "lqibe/lqibe.h"
 
 // const unsigned char *key;
 // const unsigned char *iv;
@@ -49,25 +50,25 @@ sgx_status_t ecall_instantiate_key() {
 
     if (status != SGX_SUCCESS)
     {
-        enclave_print("Failed to unseal key");
+        // verify_print("Failed to unseal key");
 		key_and_iv = (key_iv *) malloc(sizeof(struct key_iv));
 		key_and_iv->key = (const unsigned char *) malloc(16);
 		key_and_iv->iv = (const unsigned char *) malloc(12);
 		return SGX_SUCCESS;
     }
-	enclave_print("unsealing, key");
-	enclave_print(key_and_iv->key);
-	enclave_print("iv:");
-	enclave_print(key_and_iv->iv);
+	verify_print("unsealing, key");
+	verify_print(key_and_iv->key);
+	verify_print("iv:");
+	verify_print(key_and_iv->iv);
 	return SGX_SUCCESS;
 	
 }
 
 sgx_status_t ecall_provision_key(char *k, char *v) {
-	enclave_print("provisioning:key");
-	enclave_print(k);
-	enclave_print("iv:");
-	enclave_print(v);
+	verify_print("provisioning:key");
+	verify_print(k);
+	verify_print("iv:");
+	verify_print(v);
     memcpy(key_and_iv->key, k, 16);
 	memcpy(key_and_iv->iv, v, 12);
 	size_t sealed_size = sizeof(sgx_sealed_data_t) + sizeof(struct key_iv);
@@ -76,7 +77,7 @@ sgx_status_t ecall_provision_key(char *k, char *v) {
     sgx_status_t status = sgx_seal_data(0, NULL, sizeof(struct key_iv), 
         (uint8_t *) key_and_iv, sealed_size, (sgx_sealed_data_t *) sealed_key_iv);
     if (status != SGX_SUCCESS) {
-		enclave_print("Failed to seal key");
+		verify_print("Failed to seal key");
 		return status;
 	}
 	return SGX_SUCCESS;
@@ -87,122 +88,42 @@ sgx_status_t ecall_provision_key(char *k, char *v) {
 long ecall_verify_proof(char *proof_cipher, size_t proof_cipher_size, char *subject, 
 	size_t subj_size, char *policyDER, size_t policyDER_size) 
 {
-    enclave_print("Inside enclave to verify the proof");
-	string returnStr = string("verifying proof succeeded");
+    verify_print("Inside enclave to verify the proof");
 
-	enclave_print("about to start decrypting:key");
-	enclave_print(key_and_iv->key);
-	enclave_print("iv:");
-	enclave_print(key_and_iv->iv);
-	enclave_print("Decrypting proof");
+	verify_print("about to start decrypting:key");
+	verify_print(key_and_iv->key);
+	verify_print("iv:");
+	verify_print(key_and_iv->iv);
+	verify_print("Decrypting proof");
 
-	EVP_CIPHER_CTX *kctx;
-	int outlen;
-	unsigned char decrypted[proof_cipher_size];
-	if (!(kctx = EVP_CIPHER_CTX_new())) {
-		returnStr = string("error initializing crypto");
-		goto decryptReturn;
-	}
-	if (1 != EVP_DecryptInit_ex(kctx, EVP_aes_128_gcm(), NULL, key_and_iv->key, key_and_iv->iv)) {
-		returnStr = string("error initializing decryption");
-		goto decryptReturn;
-	}
-	if (1 != EVP_DecryptUpdate(kctx, decrypted, &outlen, 
-		(const unsigned char *) proof_cipher, proof_cipher_size)) {
-		returnStr = string("error decrypting proof");
-		goto decryptReturn;
-	}
-	EVP_CIPHER_CTX_free(kctx);
+
+	// embedded_pairing_lqibe_ciphertext_get_marshalled_length();
+	// embedded_pairing_lqibe_ciphertext_t ciphertext;
+	// embedded_pairing_lqibe_ciphertext_unmarshal(&ciphertext, proof_cipher+2, true, false);
+	// char symmetric[28];
+	// embedded_pairing_lqibe_decrypt(symmetric, 28, &ciphertext, );
+
+
+	// EVP_CIPHER_CTX *kctx;
+	// int outlen;
+	// unsigned char decrypted[proof_cipher_size-98];
+	// if (!(kctx = EVP_CIPHER_CTX_new())) {
+	// 	verify_print("error initializing crypto");
+	// 	return -2;
+	// }
+	// if (1 != EVP_DecryptInit_ex(kctx, EVP_aes_128_gcm(), NULL, symmetric, symmetric[16])) {
+	// 	verify_print("error initializing decryption");
+	// 	return -2;
+	// }
+	// if (1 != EVP_DecryptUpdate(kctx, decrypted, &outlen, 
+	// 	(const unsigned char *) proof_cipher+98, proof_cipher_size-98)) {
+	// 	verify_print("error decrypting proof");
+	// 	return -2;
+	// }
+	// EVP_CIPHER_CTX_free(kctx);
 
 	// gofunc: VerifyProof
-	auto [finalsubject, superset_ns, supersetStatements, expiry, pathpolicies] = 
-		verify_rtree_proof((char *) decrypted, outlen);
-	if (expiry == -1) {
-		enclave_print("\nerror in verify rtree proof");
-		return -1;
-	} else if (expiry == -2) {
-		enclave_print("\nerror unmarshaling proof wire object, most likely a decryption error");
-		return -2;
-	}
-	// Check that proof policy is a superset of required policy
-	// gofunc: IsSubsetOf
-	RTreePolicy_t *policy = 0;
-	if (policyDER != nullptr) {
-		enclave_print("comparing proof policy to required policy");
-		WaveWireObject_t *wwoPtr = 0;
-    	wwoPtr = (WaveWireObject_t *) unmarshal((uint8_t *) policyDER, policyDER_size, wwoPtr, &asn_DEF_WaveWireObject);
-		if (wwoPtr == nullptr) {
-			returnStr = string("failed to unmarshal wave wire object");
-			goto errorReturn;
-		}
-		ANY_t type = wwoPtr->encoding.choice.single_ASN1_type;
-		policy = (RTreePolicy_t *) unmarshal(type.buf, type.size, policy, &asn_DEF_RTreePolicy);
-		asn_DEF_WaveWireObject.op->free_struct(&asn_DEF_WaveWireObject, wwoPtr, ASFM_FREE_EVERYTHING);
-		if (policy == nullptr) {
-           	returnStr = string("unexpected error unmarshaling policy");
-			goto errorReturn;
-        }
-
-		OCTET_STRING_t *lhs_ns = HashSchemeInstanceFor(policy);
-		// not doing multihash
-		if (OCTET_STRING_compare(&asn_DEF_OCTET_STRING, superset_ns, lhs_ns)) {
-			asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, lhs_ns, ASFM_FREE_EVERYTHING);
-			returnStr = string("proof is well formed but namespaces don't match");
-			goto errorReturn;
-		}
-		asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, lhs_ns, ASFM_FREE_EVERYTHING);
-
-		RTreePolicy_t::RTreePolicy__statements policyStatements = policy->statements;
-		int lhs_index = 0;
-		while (lhs_index < policyStatements.list.count) {
-			RTreeStatementItem *leftStatement = statementToItem(policyStatements.list.array[lhs_index]);
-			lhs_index++;
-			int superset_index = 0;
-			bool superset = false;
-			while (superset_index < supersetStatements->size()) {
-				RTreeStatementItem *supersetStatement = supersetStatements->at(superset_index);
-				superset_index++;
-				if (isStatementSupersetOf(leftStatement, supersetStatement)) {
-					superset = true;
-					break;
-				}
-			}
-			delete leftStatement;
-			if (!superset) {
-				returnStr = string("proof is well formed but grants insufficient permissions");
-				goto errorReturn;
-			}
-		}
-	}
-	enclave_print("proof grants sufficient permissions\n");
-
-	// Check subject
-	if (memcmp(subject, finalsubject->buf, subj_size)) {
-		returnStr = string("proof is well formed but subject does not match");
-		goto errorReturn;
-	}
-	enclave_print("subjects match\n");
-	goto Return;
-
-decryptReturn:
-	enclave_print(returnStr.c_str());
-	return -2;
-errorReturn:
-	expiry = -1;
-Return:
-	enclave_print(returnStr.c_str());
-    asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, finalsubject, ASFM_FREE_EVERYTHING);
-    asn_DEF_RTreePolicy.op->free_struct(&asn_DEF_RTreePolicy, policy, ASFM_FREE_EVERYTHING);
-	asn_DEF_OCTET_STRING.op->free_struct(&asn_DEF_OCTET_STRING, superset_ns, ASFM_FREE_EVERYTHING);
-	for (int i = 0; i < pathpolicies->size(); i++) {
-        asn_DEF_RTreePolicy.op->free_struct(&asn_DEF_RTreePolicy, pathpolicies->at(i), ASFM_FREE_EVERYTHING);
-    }
-	delete pathpolicies;
-	for (int i = 0; i < supersetStatements->size(); i++) {
-		delete supersetStatements->at(i);
-	}
-	delete supersetStatements;
-	return expiry;
+	return verifyProof(proof_cipher, proof_cipher_size, subject, subj_size, policyDER, policyDER_size);
 }
 
 /*

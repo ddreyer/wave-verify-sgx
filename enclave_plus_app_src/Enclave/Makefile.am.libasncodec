@@ -1,118 +1,118 @@
 ASN_MODULE_SRCS=	\
-	wave-verify/asn1c_files/WaveWireObject.c	\
-	wave-verify/asn1c_files/WaveAttestation.c	\
-	wave-verify/asn1c_files/WaveAttestationTbs.c	\
-	wave-verify/asn1c_files/WaveEncryptedMessage.c	\
-	wave-verify/asn1c_files/AttestationBody.c	\
-	wave-verify/asn1c_files/AttestationVerifierBody.c	\
-	wave-verify/asn1c_files/Extension.c	\
-	wave-verify/asn1c_files/RevocationOption.c	\
-	wave-verify/asn1c_files/WaveEntity.c	\
-	wave-verify/asn1c_files/WaveEntityTbs.c	\
-	wave-verify/asn1c_files/WaveEntitySecret.c	\
-	wave-verify/asn1c_files/EntityKeyring.c	\
-	wave-verify/asn1c_files/EntityKeyringEntry.c	\
-	wave-verify/asn1c_files/BLS12381OAQUEKeyringBundle.c	\
-	wave-verify/asn1c_files/BLS12381OAQUEBundleEntry.c	\
-	wave-verify/asn1c_files/EntityPrivateKey.c	\
-	wave-verify/asn1c_files/EntityPublicKey.c	\
-	wave-verify/asn1c_files/Capability.c	\
-	wave-verify/asn1c_files/WaveExplicitProof.c	\
-	wave-verify/asn1c_files/AttestationReference.c	\
-	wave-verify/asn1c_files/RTreePolicy.c	\
-	wave-verify/asn1c_files/RTreeStatement.c	\
-	wave-verify/asn1c_files/AttestationVerifierKey.c	\
-	wave-verify/asn1c_files/RevocationCheck.c	\
-	wave-verify/asn1c_files/Hash.c	\
-	wave-verify/asn1c_files/EntityHash.c	\
-	wave-verify/asn1c_files/AttestationHash.c	\
-	wave-verify/asn1c_files/HashSha3-256.c	\
-	wave-verify/asn1c_files/HashSha-256.c	\
-	wave-verify/asn1c_files/HashKeccak-256.c	\
-	wave-verify/asn1c_files/Location.c	\
-	wave-verify/asn1c_files/LocationURL.c	\
-	wave-verify/asn1c_files/LocationEthereum.c	\
-	wave-verify/asn1c_files/PSKBodyCiphertext.c	\
-	wave-verify/asn1c_files/WaveNameDeclaration.c	\
-	wave-verify/asn1c_files/NameDeclarationKey.c	\
-	wave-verify/asn1c_files/NameDeclarationBody.c	\
-	wave-verify/asn1c_files/NameDeclarationKeyNone.c	\
-	wave-verify/asn1c_files/NameDeclarationKeyWR1.c	\
-	wave-verify/asn1c_files/NameDeclarationWR1Envelope.c	\
-	wave-verify/asn1c_files/WR1BodyCiphertext.c	\
-	wave-verify/asn1c_files/WR1Envelope.c	\
-	wave-verify/asn1c_files/WR1ProverBody.c	\
-	wave-verify/asn1c_files/WR1VerifierBody.c	\
-	wave-verify/asn1c_files/Ed25519OuterSignature.c	\
-	wave-verify/asn1c_files/Signature.c	\
-	wave-verify/asn1c_files/SignedOuterKey.c	\
-	wave-verify/asn1c_files/SignedOuterKeyTbs.c	\
-	wave-verify/asn1c_files/TrustLevel.c	\
-	wave-verify/asn1c_files/CommitmentRevocationOption.c	\
-	wave-verify/asn1c_files/AVKeyAES128-GCM.c	\
-	wave-verify/asn1c_files/Private-Ed25519.c	\
-	wave-verify/asn1c_files/Private-Curve25519.c	\
-	wave-verify/asn1c_files/Private-BLS12381-OAQUE.c	\
-	wave-verify/asn1c_files/Private-BLS12381-IBE.c	\
-	wave-verify/asn1c_files/Master-BLS12381-OAQUE.c	\
-	wave-verify/asn1c_files/Master-BLS12381-IBE.c	\
-	wave-verify/asn1c_files/Public-Ed25519.c	\
-	wave-verify/asn1c_files/Public-Curve25519.c	\
-	wave-verify/asn1c_files/Public-OAQUE.c	\
-	wave-verify/asn1c_files/Params-BLS12381-OAQUE.c	\
-	wave-verify/asn1c_files/Params-BLS12381-IBE.c	\
-	wave-verify/asn1c_files/Public-BLS12381-IBE.c	\
-	wave-verify/asn1c_files/KeyringAESCiphertext.c	\
-	wave-verify/asn1c_files/MessageKeyCurve25519ECDH.c	\
-	wave-verify/asn1c_files/MessageKeyWR1.c	\
-	wave-verify/asn1c_files/MessageKeyWR1Envelope.c	\
-	wave-verify/asn1c_files/EXTERNAL.c
+	wave-verify/src/asn1c/WaveWireObject.c	\
+	wave-verify/src/asn1c/WaveAttestation.c	\
+	wave-verify/src/asn1c/WaveAttestationTbs.c	\
+	wave-verify/src/asn1c/WaveEncryptedMessage.c	\
+	wave-verify/src/asn1c/AttestationBody.c	\
+	wave-verify/src/asn1c/AttestationVerifierBody.c	\
+	wave-verify/src/asn1c/Extension.c	\
+	wave-verify/src/asn1c/RevocationOption.c	\
+	wave-verify/src/asn1c/WaveEntity.c	\
+	wave-verify/src/asn1c/WaveEntityTbs.c	\
+	wave-verify/src/asn1c/WaveEntitySecret.c	\
+	wave-verify/src/asn1c/EntityKeyring.c	\
+	wave-verify/src/asn1c/EntityKeyringEntry.c	\
+	wave-verify/src/asn1c/BLS12381OAQUEKeyringBundle.c	\
+	wave-verify/src/asn1c/BLS12381OAQUEBundleEntry.c	\
+	wave-verify/src/asn1c/EntityPrivateKey.c	\
+	wave-verify/src/asn1c/EntityPublicKey.c	\
+	wave-verify/src/asn1c/Capability.c	\
+	wave-verify/src/asn1c/WaveExplicitProof.c	\
+	wave-verify/src/asn1c/AttestationReference.c	\
+	wave-verify/src/asn1c/RTreePolicy.c	\
+	wave-verify/src/asn1c/RTreeStatement.c	\
+	wave-verify/src/asn1c/AttestationVerifierKey.c	\
+	wave-verify/src/asn1c/RevocationCheck.c	\
+	wave-verify/src/asn1c/Hash.c	\
+	wave-verify/src/asn1c/EntityHash.c	\
+	wave-verify/src/asn1c/AttestationHash.c	\
+	wave-verify/src/asn1c/HashSha3-256.c	\
+	wave-verify/src/asn1c/HashSha-256.c	\
+	wave-verify/src/asn1c/HashKeccak-256.c	\
+	wave-verify/src/asn1c/Location.c	\
+	wave-verify/src/asn1c/LocationURL.c	\
+	wave-verify/src/asn1c/LocationEthereum.c	\
+	wave-verify/src/asn1c/PSKBodyCiphertext.c	\
+	wave-verify/src/asn1c/WaveNameDeclaration.c	\
+	wave-verify/src/asn1c/NameDeclarationKey.c	\
+	wave-verify/src/asn1c/NameDeclarationBody.c	\
+	wave-verify/src/asn1c/NameDeclarationKeyNone.c	\
+	wave-verify/src/asn1c/NameDeclarationKeyWR1.c	\
+	wave-verify/src/asn1c/NameDeclarationWR1Envelope.c	\
+	wave-verify/src/asn1c/WR1BodyCiphertext.c	\
+	wave-verify/src/asn1c/WR1Envelope.c	\
+	wave-verify/src/asn1c/WR1ProverBody.c	\
+	wave-verify/src/asn1c/WR1VerifierBody.c	\
+	wave-verify/src/asn1c/Ed25519OuterSignature.c	\
+	wave-verify/src/asn1c/Signature.c	\
+	wave-verify/src/asn1c/SignedOuterKey.c	\
+	wave-verify/src/asn1c/SignedOuterKeyTbs.c	\
+	wave-verify/src/asn1c/TrustLevel.c	\
+	wave-verify/src/asn1c/CommitmentRevocationOption.c	\
+	wave-verify/src/asn1c/AVKeyAES128-GCM.c	\
+	wave-verify/src/asn1c/Private-Ed25519.c	\
+	wave-verify/src/asn1c/Private-Curve25519.c	\
+	wave-verify/src/asn1c/Private-BLS12381-OAQUE.c	\
+	wave-verify/src/asn1c/Private-BLS12381-IBE.c	\
+	wave-verify/src/asn1c/Master-BLS12381-OAQUE.c	\
+	wave-verify/src/asn1c/Master-BLS12381-IBE.c	\
+	wave-verify/src/asn1c/Public-Ed25519.c	\
+	wave-verify/src/asn1c/Public-Curve25519.c	\
+	wave-verify/src/asn1c/Public-OAQUE.c	\
+	wave-verify/src/asn1c/Params-BLS12381-OAQUE.c	\
+	wave-verify/src/asn1c/Params-BLS12381-IBE.c	\
+	wave-verify/src/asn1c/Public-BLS12381-IBE.c	\
+	wave-verify/src/asn1c/KeyringAESCiphertext.c	\
+	wave-verify/src/asn1c/MessageKeyCurve25519ECDH.c	\
+	wave-verify/src/asn1c/MessageKeyWR1.c	\
+	wave-verify/src/asn1c/MessageKeyWR1Envelope.c	\
+	wave-verify/src/asn1c/EXTERNAL.c
 
-ASN_MODULE_SRCS+=wave-verify/asn1c_files/ANY.c
-ASN_MODULE_SRCS+=wave-verify/asn1c_files/OPEN_TYPE.c
-ASN_MODULE_SRCS+=wave-verify/asn1c_files/BOOLEAN.c
-ASN_MODULE_SRCS+=wave-verify/asn1c_files/GeneralizedTime.c
-ASN_MODULE_SRCS+=wave-verify/asn1c_files/GraphicString.c
-ASN_MODULE_SRCS+=wave-verify/asn1c_files/INTEGER.c
-ASN_MODULE_SRCS+=wave-verify/asn1c_files/NativeInteger.c
-ASN_MODULE_SRCS+=wave-verify/asn1c_files/OBJECT_IDENTIFIER.c
-ASN_MODULE_SRCS+=wave-verify/asn1c_files/ObjectDescriptor.c
-ASN_MODULE_SRCS+=wave-verify/asn1c_files/UTCTime.c
-ASN_MODULE_SRCS+=wave-verify/asn1c_files/UTF8String.c
-ASN_MODULE_SRCS+=wave-verify/asn1c_files/asn_SEQUENCE_OF.c
-ASN_MODULE_SRCS+=wave-verify/asn1c_files/asn_SET_OF.c
-ASN_MODULE_SRCS+=wave-verify/asn1c_files/constr_CHOICE.c
-ASN_MODULE_SRCS+=wave-verify/asn1c_files/constr_SEQUENCE.c
-ASN_MODULE_SRCS+=wave-verify/asn1c_files/constr_SEQUENCE_OF.c
-ASN_MODULE_SRCS+=wave-verify/asn1c_files/constr_SET_OF.c
-ASN_MODULE_SRCS+=wave-verify/asn1c_files/asn_application.c
-ASN_MODULE_SRCS+=wave-verify/asn1c_files/asn_internal.c
-ASN_MODULE_SRCS+=wave-verify/asn1c_files/asn_random_fill.c
-ASN_MODULE_SRCS+=wave-verify/asn1c_files/asn_bit_data.c
-ASN_MODULE_SRCS+=wave-verify/asn1c_files/OCTET_STRING.c
-ASN_MODULE_SRCS+=wave-verify/asn1c_files/BIT_STRING.c
-ASN_MODULE_SRCS+=wave-verify/asn1c_files/asn_codecs_prim.c
-ASN_MODULE_SRCS+=wave-verify/asn1c_files/ber_tlv_length.c
-ASN_MODULE_SRCS+=wave-verify/asn1c_files/ber_tlv_tag.c
-ASN_MODULE_SRCS+=wave-verify/asn1c_files/ber_decoder.c
-ASN_MODULE_SRCS+=wave-verify/asn1c_files/der_encoder.c
-ASN_MODULE_SRCS+=wave-verify/asn1c_files/constr_TYPE.c
-ASN_MODULE_SRCS+=wave-verify/asn1c_files/constraints.c
-ASN_MODULE_SRCS+=wave-verify/asn1c_files/xer_support.c
-ASN_MODULE_SRCS+=wave-verify/asn1c_files/xer_decoder.c
-ASN_MODULE_SRCS+=wave-verify/asn1c_files/xer_encoder.c
-ASN_MODULE_SRCS+=wave-verify/asn1c_files/per_support.c
-ASN_MODULE_SRCS+=wave-verify/asn1c_files/per_decoder.c
-ASN_MODULE_SRCS+=wave-verify/asn1c_files/per_encoder.c
-ASN_MODULE_SRCS+=wave-verify/asn1c_files/per_opentype.c
-ASN_MODULE_SRCS+=wave-verify/asn1c_files/oer_decoder.c
-ASN_MODULE_SRCS+=wave-verify/asn1c_files/oer_encoder.c
-ASN_MODULE_SRCS+=wave-verify/asn1c_files/oer_support.c
-ASN_MODULE_SRCS+=wave-verify/asn1c_files/OPEN_TYPE_oer.c
-ASN_MODULE_SRCS+=wave-verify/asn1c_files/INTEGER_oer.c
-ASN_MODULE_SRCS+=wave-verify/asn1c_files/BIT_STRING_oer.c
-ASN_MODULE_SRCS+=wave-verify/asn1c_files/OCTET_STRING_oer.c
-ASN_MODULE_SRCS+=wave-verify/asn1c_files/NativeInteger_oer.c
-ASN_MODULE_SRCS+=wave-verify/asn1c_files/constr_CHOICE_oer.c
-ASN_MODULE_SRCS+=wave-verify/asn1c_files/constr_SEQUENCE_oer.c
-ASN_MODULE_SRCS+=wave-verify/asn1c_files/constr_SET_OF_oer.c
+ASN_MODULE_SRCS+=wave-verify/src/asn1c/ANY.c
+ASN_MODULE_SRCS+=wave-verify/src/asn1c/OPEN_TYPE.c
+ASN_MODULE_SRCS+=wave-verify/src/asn1c/BOOLEAN.c
+ASN_MODULE_SRCS+=wave-verify/src/asn1c/GeneralizedTime.c
+ASN_MODULE_SRCS+=wave-verify/src/asn1c/GraphicString.c
+ASN_MODULE_SRCS+=wave-verify/src/asn1c/INTEGER.c
+ASN_MODULE_SRCS+=wave-verify/src/asn1c/NativeInteger.c
+ASN_MODULE_SRCS+=wave-verify/src/asn1c/OBJECT_IDENTIFIER.c
+ASN_MODULE_SRCS+=wave-verify/src/asn1c/ObjectDescriptor.c
+ASN_MODULE_SRCS+=wave-verify/src/asn1c/UTCTime.c
+ASN_MODULE_SRCS+=wave-verify/src/asn1c/UTF8String.c
+ASN_MODULE_SRCS+=wave-verify/src/asn1c/asn_SEQUENCE_OF.c
+ASN_MODULE_SRCS+=wave-verify/src/asn1c/asn_SET_OF.c
+ASN_MODULE_SRCS+=wave-verify/src/asn1c/constr_CHOICE.c
+ASN_MODULE_SRCS+=wave-verify/src/asn1c/constr_SEQUENCE.c
+ASN_MODULE_SRCS+=wave-verify/src/asn1c/constr_SEQUENCE_OF.c
+ASN_MODULE_SRCS+=wave-verify/src/asn1c/constr_SET_OF.c
+ASN_MODULE_SRCS+=wave-verify/src/asn1c/asn_application.c
+ASN_MODULE_SRCS+=wave-verify/src/asn1c/asn_internal.c
+ASN_MODULE_SRCS+=wave-verify/src/asn1c/asn_random_fill.c
+ASN_MODULE_SRCS+=wave-verify/src/asn1c/asn_bit_data.c
+ASN_MODULE_SRCS+=wave-verify/src/asn1c/OCTET_STRING.c
+ASN_MODULE_SRCS+=wave-verify/src/asn1c/BIT_STRING.c
+ASN_MODULE_SRCS+=wave-verify/src/asn1c/asn_codecs_prim.c
+ASN_MODULE_SRCS+=wave-verify/src/asn1c/ber_tlv_length.c
+ASN_MODULE_SRCS+=wave-verify/src/asn1c/ber_tlv_tag.c
+ASN_MODULE_SRCS+=wave-verify/src/asn1c/ber_decoder.c
+ASN_MODULE_SRCS+=wave-verify/src/asn1c/der_encoder.c
+ASN_MODULE_SRCS+=wave-verify/src/asn1c/constr_TYPE.c
+ASN_MODULE_SRCS+=wave-verify/src/asn1c/constraints.c
+ASN_MODULE_SRCS+=wave-verify/src/asn1c/xer_support.c
+ASN_MODULE_SRCS+=wave-verify/src/asn1c/xer_decoder.c
+ASN_MODULE_SRCS+=wave-verify/src/asn1c/xer_encoder.c
+ASN_MODULE_SRCS+=wave-verify/src/asn1c/per_support.c
+ASN_MODULE_SRCS+=wave-verify/src/asn1c/per_decoder.c
+ASN_MODULE_SRCS+=wave-verify/src/asn1c/per_encoder.c
+ASN_MODULE_SRCS+=wave-verify/src/asn1c/per_opentype.c
+ASN_MODULE_SRCS+=wave-verify/src/asn1c/oer_decoder.c
+ASN_MODULE_SRCS+=wave-verify/src/asn1c/oer_encoder.c
+ASN_MODULE_SRCS+=wave-verify/src/asn1c/oer_support.c
+ASN_MODULE_SRCS+=wave-verify/src/asn1c/OPEN_TYPE_oer.c
+ASN_MODULE_SRCS+=wave-verify/src/asn1c/INTEGER_oer.c
+ASN_MODULE_SRCS+=wave-verify/src/asn1c/BIT_STRING_oer.c
+ASN_MODULE_SRCS+=wave-verify/src/asn1c/OCTET_STRING_oer.c
+ASN_MODULE_SRCS+=wave-verify/src/asn1c/NativeInteger_oer.c
+ASN_MODULE_SRCS+=wave-verify/src/asn1c/constr_CHOICE_oer.c
+ASN_MODULE_SRCS+=wave-verify/src/asn1c/constr_SEQUENCE_oer.c
+ASN_MODULE_SRCS+=wave-verify/src/asn1c/constr_SET_OF_oer.c

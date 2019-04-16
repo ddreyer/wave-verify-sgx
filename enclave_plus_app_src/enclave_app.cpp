@@ -60,28 +60,6 @@ int init_enclave() {
 	sgx_status_t status, sgxrv;
 	int updated= 0;
 	int sgx_support;
-	
-	/* Create a logfile to capture DEBUG output and actual msg data */
-	fplog = create_logfile("enclave_app.log");
-	dividerWithText(fplog, "Enclave App Log Timestamp");
-
-	const time_t timeT = time(NULL);
-	struct tm lt;
-
-#ifndef _WIN32
-	lt = *localtime(&timeT);
-#else
-
-	localtime_s(&lt, &timeT);
-#endif
-	fprintf(fplog, "%4d-%02d-%02d %02d:%02d:%02d\n", 
-		lt.tm_year + 1900, 
-		lt.tm_mon + 1, 
-		lt.tm_mday,  
-		lt.tm_hour, 
-		lt.tm_min, 
-		lt.tm_sec);
-	divider(fplog);
 
 	/* Can we run SGX? */
 #ifndef SGX_HW_SIM
